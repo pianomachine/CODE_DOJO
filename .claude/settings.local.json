@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(npm run dev:*)",
+      "Bash(npm run electron:dev:*)",
+      "Bash(cat:*)",
+      "Bash(npm install:*)",
+      "Bash(powershell -Command \"(Get-Content ''src/components/CreateProblemModal.tsx'') -replace ''fixed inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-\\[800px\\] md:max-h-\\[85vh\\]'', ''fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[800px] max-h-[85vh]'' | Set-Content ''src/components/CreateProblemModal.tsx''\")",
+      "Bash(git init:*)",
+      "Bash(git remote add:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
