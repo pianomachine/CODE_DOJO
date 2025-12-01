@@ -18,6 +18,51 @@ import type { editor } from 'monaco-editor'
 import { useAppStore } from '../store/appStore'
 import type { Problem, Submission } from '../types'
 
+// Format matrix input for display
+// Detects patterns like "3 4 1 1 2 1 ..." where first two numbers are rows/cols
+function formatMatrixInput(input: string): string {
+  // Replace literal \n with actual newlines first
+  const normalized = input.replace(/\\n/g, '\n')
+
+  // If it already has newlines, just return as-is
+  if (normalized.includes('\n')) {
+    return normalized
+  }
+
+  // Try to detect matrix format: "rows cols data..."
+  const parts = normalized.trim().split(/\s+/)
+  if (parts.length < 3) {
+    return normalized
+  }
+
+  const rows = parseInt(parts[0], 10)
+  const cols = parseInt(parts[1], 10)
+
+  // Validate that first two values are reasonable matrix dimensions
+  if (isNaN(rows) || isNaN(cols) || rows <= 0 || cols <= 0 || rows > 100 || cols > 100) {
+    return normalized
+  }
+
+  // Check if we have exactly the right amount of data for a matrix
+  const expectedDataCount = rows * cols
+  const remainingParts = parts.slice(2)
+
+  if (remainingParts.length !== expectedDataCount) {
+    return normalized
+  }
+
+  // Build the matrix display
+  const lines: string[] = []
+  lines.push(`${rows} ${cols}`)
+
+  for (let r = 0; r < rows; r++) {
+    const rowData = remainingParts.slice(r * cols, (r + 1) * cols).join(' ')
+    lines.push(rowData)
+  }
+
+  return lines.join('\n')
+}
+
 // Detect language from code content
 function detectLanguage(code: string): string {
   // Check for C++ patterns
@@ -369,10 +414,16 @@ export function PracticeView() {
             <h3 className="text-sm font-semibold text-dark-400 mb-3">Examples</h3>
             {selectedProblem.testCases.map((testCase, index) => (
               <div key={testCase.id} className="mb-4 p-3 bg-dark-800/50 rounded-lg">
-                <div className="text-xs text-dark-500 mb-2">Example {index + 1}</div>
+                <div className="text-xs text-dark-500 mb-2">Example {index + 1}{testCase.description ? ` - ${testCase.description}` : ''}</div>
                 <div className="text-sm font-mono">
-                  <div className="text-dark-400 mb-1">Input: <span className="text-dark-200">{testCase.input}</span></div>
-                  <div className="text-dark-400">Output: <span className="text-accent-green">{testCase.expectedOutput}</span></div>
+                  <div className="text-dark-400 mb-2">
+                    <div className="mb-1">Input:</div>
+                    <pre className="text-dark-200 bg-dark-900/50 p-2 rounded whitespace-pre-wrap break-all">{formatMatrixInput(testCase.input)}</pre>
+                  </div>
+                  <div className="text-dark-400">
+                    <div className="mb-1">Expected Output:</div>
+                    <pre className="text-accent-green bg-dark-900/50 p-2 rounded whitespace-pre-wrap break-all">{testCase.expectedOutput.replace(/\\n/g, '\n')}</pre>
+                  </div>
                 </div>
               </div>
             ))}

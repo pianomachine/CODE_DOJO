@@ -118,30 +118,75 @@ ipcMain.handle('generate-problem', async (_event, params: {
   try {
     const { prompt, difficulty, language, category } = params
 
-    const systemPrompt = `You are a coding problem generator. Generate a coding problem based on the user's request.
+    const systemPrompt = `You are a coding problem parser and generator. Your task is to either:
+1. Parse an existing problem statement (from competitive programming sites like AtCoder, LeetCode, Codeforces, etc.)
+2. Generate a new problem based on a description
+
+IMPORTANT: The user may paste a raw problem statement directly. In that case:
+- Extract the title from the problem (or create a concise one)
+- Rewrite the description clearly in your own words
+- Extract ALL test cases from the input/output examples
+- Create appropriate starter code for the specified language
+
+CRITICAL - Test case input/output formatting:
+- You MUST preserve the EXACT line structure from the original problem's input/output examples
+- Look at the original "入力例" / "Input Example" / "Sample Input" sections carefully
+- Each line in the original input = one line in your output, separated by \\n
+
+EXAMPLE - If the original problem shows:
+  入力例1
+  3 4
+  1 1 2 1
+  2 1 1 2
+  2 1 1 2
+  出力例1
+  6
+
+Then your testCase MUST be: {"input": "3 4\\n1 1 2 1\\n2 1 1 2\\n2 1 1 2", "expectedOutput": "6"}
+
+WRONG formats (DO NOT DO THIS):
+- "3 4 1 1 2 1 2 1 1 2 2 1 1 2" (all on one line - WRONG)
+- "3 4 1 1 2 1 2 1 1 2\\n2 1 1 2" (random line breaks - WRONG)
+- Breaking lines at arbitrary positions based on display width - WRONG
+
+The number of \\n in your input should match (number of lines in original input - 1)
+
 Return a JSON object with the following structure:
 {
-  "title": "Problem title",
-  "description": "Detailed problem description explaining what needs to be done",
+  "title": "Concise problem title",
+  "description": "Clear problem description. Include input format, constraints, and what the output should be.",
   "difficulty": "${difficulty}",
   "category": "${category || 'Algorithm'}",
-  "tags": ["tag1", "tag2", "tag3"],
-  "starterCode": "// Starter code template in ${language}",
+  "tags": ["relevant", "algorithm", "tags"],
+  "starterCode": "Starter code template in ${language} with proper input parsing",
   "testCases": [
     {
-      "input": "Example input",
+      "input": "Line1\\nLine2\\nLine3",
       "expectedOutput": "Expected output",
-      "description": "Test case description"
+      "description": "Brief description of this test case"
     }
   ]
 }
 
+EXAMPLES of correct test case formatting:
+- Grid input: {"input": "3 4\\n1 1 2 1\\n2 1 1 2\\n2 1 1 2", "expectedOutput": "6"}
+- Array input: {"input": "5\\n1 2 3 4 5", "expectedOutput": "15"}
+- Single line: {"input": "hello world", "expectedOutput": "dlrow olleh"}
+
+For ${language} starter code:
+- Include necessary imports/includes
+- Add input parsing boilerplate appropriate for the language
+- For C++: Use iostream with cin/cout
+- For Python: Use input() or sys.stdin
+- For TypeScript/JavaScript: Assume input comes from function parameters OR stdin
+- For Java: Use Scanner for input
+- Leave the main algorithm logic for the user to implement
+
 Make sure:
-- The problem is appropriate for the ${difficulty} difficulty level
-- The starter code is in ${language}
-- Include at least 3 test cases
-- The description is clear and complete
-- Tags are relevant to the problem type`
+- The starter code is fully functional and ready to run (except for the solution logic)
+- Include at least 2-3 test cases from the original problem if available
+- The description captures the essence of the problem without unnecessary formatting artifacts
+- TEST CASE INPUTS PRESERVE THE ORIGINAL LINE STRUCTURE WITH \\n`
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -150,7 +195,7 @@ Make sure:
         { role: 'user', content: prompt }
       ],
       response_format: { type: 'json_object' },
-      temperature: 0.7,
+      temperature: 0.3,
     })
 
     const content = completion.choices[0]?.message?.content

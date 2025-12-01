@@ -6,6 +6,51 @@ import { useVimNavigation } from '../hooks/useVimNavigation'
 import { CreateProblemModal } from '../components/CreateProblemModal'
 import type { Problem, Folder as FolderType } from '../types'
 
+// Format matrix input for display
+// Detects patterns like "3 4 1 1 2 1 ..." where first two numbers are rows/cols
+function formatMatrixInput(input: string): string {
+  // Replace literal \n with actual newlines first
+  const normalized = input.replace(/\\n/g, '\n')
+
+  // If it already has newlines, just return as-is
+  if (normalized.includes('\n')) {
+    return normalized
+  }
+
+  // Try to detect matrix format: "rows cols data..."
+  const parts = normalized.trim().split(/\s+/)
+  if (parts.length < 3) {
+    return normalized
+  }
+
+  const rows = parseInt(parts[0], 10)
+  const cols = parseInt(parts[1], 10)
+
+  // Validate that first two values are reasonable matrix dimensions
+  if (isNaN(rows) || isNaN(cols) || rows <= 0 || cols <= 0 || rows > 100 || cols > 100) {
+    return normalized
+  }
+
+  // Check if we have exactly the right amount of data for a matrix
+  const expectedDataCount = rows * cols
+  const remainingParts = parts.slice(2)
+
+  if (remainingParts.length !== expectedDataCount) {
+    return normalized
+  }
+
+  // Build the matrix display
+  const lines: string[] = []
+  lines.push(`${rows} ${cols}`)
+
+  for (let r = 0; r < rows; r++) {
+    const rowData = remainingParts.slice(r * cols, (r + 1) * cols).join(' ')
+    lines.push(rowData)
+  }
+
+  return lines.join('\n')
+}
+
 export function ProblemsView() {
   const {
     problems,
@@ -513,9 +558,9 @@ export function ProblemsView() {
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <div className="text-xs text-dark-500 mb-1">Input:</div>
-                          <code className="block p-2 bg-dark-900 rounded text-sm font-mono text-dark-200">
-                            {testCase.input}
-                          </code>
+                          <pre className="block p-2 bg-dark-900 rounded text-sm font-mono text-dark-200 whitespace-pre-wrap">
+                            {formatMatrixInput(testCase.input)}
+                          </pre>
                         </div>
                         <div>
                           <div className="text-xs text-dark-500 mb-1">Expected Output:</div>

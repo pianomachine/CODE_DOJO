@@ -9,7 +9,9 @@
       "Bash(powershell -Command \"(Get-Content ''src/components/CreateProblemModal.tsx'') -replace ''fixed inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-\\[800px\\] md:max-h-\\[85vh\\]'', ''fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[800px] max-h-[85vh]'' | Set-Content ''src/components/CreateProblemModal.tsx''\")",
       "Bash(git init:*)",
       "Bash(git remote add:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nInitial commit: Code Dojo - Electron app for coding practice\n\nFeatures:\n- Dashboard, Notes, Problems, Practice, Settings views\n- Master-Detail layout with collapsible sidebar\n- Folder organization for notes and problems\n- Code execution for TypeScript, JavaScript, Python, C++, Java, Go, Rust\n- Monaco Editor with Vim mode support\n- Submission history tracking\n- Dark theme UI\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []

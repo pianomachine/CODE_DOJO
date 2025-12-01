@@ -634,22 +634,22 @@ export function CreateProblemModal({ isOpen, onClose }: Props) {
                     <div className="flex items-start gap-3">
                       <Sparkles className="w-5 h-5 text-primary-400 mt-0.5" />
                       <div>
-                        <h4 className="font-medium text-dark-100 mb-1">Let AI create a problem</h4>
+                        <h4 className="font-medium text-dark-100 mb-1">AI Problem Creation / Import</h4>
                         <p className="text-sm text-dark-400">
-                          Describe what kind of problem you want. Include themes, difficulty level, and algorithms you want to learn for better results.
+                          You can either describe a problem you want, or paste an existing problem statement directly (from AtCoder, LeetCode, Codeforces, etc.) and AI will parse it automatically.
                         </p>
                       </div>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-dark-300 mb-2">Request</label>
+                    <label className="block text-sm font-medium text-dark-300 mb-2">Problem Description / Raw Problem Text</label>
                     <textarea
                       value={aiPrompt}
                       onChange={(e) => setAiPrompt(e.target.value)}
-                      rows={6}
-                      className="w-full bg-dark-800 border border-dark-700 rounded-lg px-4 py-3 text-dark-100 focus:outline-none focus:border-primary-500 resize-none"
-                      placeholder="Examples:&#10;- Create a problem using binary search&#10;- I want a problem to learn recursion&#10;- Graph BFS/DFS practice problem&#10;- Practical string manipulation problem"
+                      rows={10}
+                      className="w-full bg-dark-800 border border-dark-700 rounded-lg px-4 py-3 text-dark-100 focus:outline-none focus:border-primary-500 resize-none font-mono text-sm"
+                      placeholder="Option 1 - Describe what you want:&#10;- Create a problem using binary search&#10;- I want a problem to learn recursion&#10;&#10;Option 2 - Paste a problem directly:&#10;あなたは、板を倒すゲームを考えました...&#10;入力例1&#10;3 4&#10;1 1 2 1&#10;...&#10;出力例1&#10;6"
                     />
                   </div>
 
