@@ -11,16 +11,24 @@
     "lint": "eslint src --ext ts,tsx"
   },
   "dependencies": {
-    "@monaco-editor/react": "^4.6.0",
+    "@milkdown/ctx": "^7.17.2",
+    "@milkdown/kit": "^7.17.2",
+    "@milkdown/plugin-history": "^7.17.2",
+    "@milkdown/plugin-listener": "^7.17.2",
+    "@milkdown/preset-commonmark": "^7.17.2",
+    "@milkdown/preset-gfm": "^7.17.2",
+    "@milkdown/react": "^7.17.2",
+    "@milkdown/theme-nord": "^7.17.2",
+    "@monaco-editor/react": "^4.7.0",
     "electron-store": "^8.1.0",
     "framer-motion": "^10.16.16",
     "lucide-react": "^0.303.0",
-    "monaco-editor": "^0.45.0",
-    "monaco-vim": "^0.4.1",
+    "monaco-editor": "^0.52.2",
     "openai": "^6.9.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "uuid": "^9.0.1",
+    "vim-monaco": "^1.0.6",
     "zustand": "^4.4.7"
   },
   "devDependencies": {

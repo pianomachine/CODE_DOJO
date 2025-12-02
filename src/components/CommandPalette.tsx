@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Command, FileText, Code2, Settings, Play } from 'lucide-react'
 import { useAppStore } from '../store/appStore'
-import type { ViewType } from '../types'
 
 interface CommandItem {
   id: string

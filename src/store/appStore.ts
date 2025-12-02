@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { v4 as uuidv4 } from 'uuid'
-import type { Note, Problem, Exercise, Submission, Folder, AppSettings, ViewType, VimMode } from '../types'
+import type { Note, Problem, Exercise, Submission, Folder, AppSettings, ViewType, VimMode, OpenFile, WorkspaceFile } from '../types'
 
 interface AppState {
   // View state
@@ -57,6 +57,22 @@ interface AppState {
   // Command palette
   commandPaletteOpen: boolean
   setCommandPaletteOpen: (open: boolean) => void
+
+  // Workspace
+  workspacePath: string | null
+  workspaceName: string
+  workspaceFiles: WorkspaceFile[]
+  workspaceExpandedFolders: Set<string>
+  workspaceOpenFiles: OpenFile[]
+  workspaceActiveFilePath: string | null
+  setWorkspacePath: (path: string | null, name?: string) => void
+  setWorkspaceFiles: (files: WorkspaceFile[]) => void
+  toggleWorkspaceFolder: (path: string) => void
+  openWorkspaceFile: (file: OpenFile) => void
+  closeWorkspaceFile: (path: string) => void
+  setWorkspaceActiveFile: (path: string | null) => void
+  updateWorkspaceFileContent: (path: string, content: string) => void
+  markWorkspaceFileSaved: (path: string) => void
 
   // Persistence
   loadFromStorage: () => Promise<void>
@@ -333,6 +349,64 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Command palette
   commandPaletteOpen: false,
   setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
+
+  // Workspace
+  workspacePath: null,
+  workspaceName: '',
+  workspaceFiles: [],
+  workspaceExpandedFolders: new Set(),
+  workspaceOpenFiles: [],
+  workspaceActiveFilePath: null,
+  setWorkspacePath: (path, name) => set({
+    workspacePath: path,
+    workspaceName: name || '',
+    workspaceFiles: [],
+    workspaceExpandedFolders: new Set(),
+    workspaceOpenFiles: [],
+    workspaceActiveFilePath: null,
+  }),
+  setWorkspaceFiles: (files) => set({ workspaceFiles: files }),
+  toggleWorkspaceFolder: (path) => set((state) => {
+    const next = new Set(state.workspaceExpandedFolders)
+    if (next.has(path)) {
+      next.delete(path)
+    } else {
+      next.add(path)
+    }
+    return { workspaceExpandedFolders: next }
+  }),
+  openWorkspaceFile: (file) => set((state) => {
+    const existing = state.workspaceOpenFiles.find((f) => f.path === file.path)
+    if (existing) {
+      return { workspaceActiveFilePath: file.path }
+    }
+    return {
+      workspaceOpenFiles: [...state.workspaceOpenFiles, file],
+      workspaceActiveFilePath: file.path,
+    }
+  }),
+  closeWorkspaceFile: (path) => set((state) => {
+    const newOpenFiles = state.workspaceOpenFiles.filter((f) => f.path !== path)
+    let newActivePath = state.workspaceActiveFilePath
+    if (state.workspaceActiveFilePath === path) {
+      newActivePath = newOpenFiles.length > 0 ? newOpenFiles[newOpenFiles.length - 1].path : null
+    }
+    return {
+      workspaceOpenFiles: newOpenFiles,
+      workspaceActiveFilePath: newActivePath,
+    }
+  }),
+  setWorkspaceActiveFile: (path) => set({ workspaceActiveFilePath: path }),
+  updateWorkspaceFileContent: (path, content) => set((state) => ({
+    workspaceOpenFiles: state.workspaceOpenFiles.map((f) =>
+      f.path === path ? { ...f, content, isDirty: true } : f
+    ),
+  })),
+  markWorkspaceFileSaved: (path) => set((state) => ({
+    workspaceOpenFiles: state.workspaceOpenFiles.map((f) =>
+      f.path === path ? { ...f, isDirty: false } : f
+    ),
+  })),
 
   // Persistence
   loadFromStorage: async () => {

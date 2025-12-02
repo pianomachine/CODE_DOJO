@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     difficulty: string
     language: string
     category?: string
+    problemStyle?: 'competitive' | 'software-design'
   }) => ipcRenderer.invoke('generate-problem', params),
 
   // Code Execution
@@ -29,4 +30,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     input?: string
     timeout?: number
   }) => ipcRenderer.invoke('execute-code', params),
+
+  // File System (Workspace)
+  workspace: {
+    openFolderDialog: () => ipcRenderer.invoke('open-folder-dialog'),
+    readDirectory: (dirPath: string) => ipcRenderer.invoke('read-directory', dirPath),
+    readFile: (filePath: string) => ipcRenderer.invoke('read-file', filePath),
+    writeFile: (filePath: string, content: string) => ipcRenderer.invoke('write-file', filePath, content),
+    getFileLanguage: (filePath: string) => ipcRenderer.invoke('get-file-language', filePath),
+  },
 })

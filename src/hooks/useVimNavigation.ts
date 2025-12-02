@@ -25,12 +25,17 @@ export function useVimNavigation(options: VimNavigationOptions = {}) {
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (!vimModeEnabled) return
 
-    // Don't intercept if we're in an input field and vim mode is not enabled for it
+    // Don't intercept if we're in an input field
     const target = e.target as HTMLElement
+    const isMonacoEditor = target.closest('.monaco-editor')
     const isEditable = target.tagName === 'INPUT' ||
                        target.tagName === 'TEXTAREA' ||
-                       target.getAttribute('contenteditable') === 'true' ||
-                       target.closest('.monaco-editor')
+                       target.getAttribute('contenteditable') === 'true'
+
+    // If we're in Monaco editor, let vim-monaco handle all key events
+    if (isMonacoEditor) {
+      return
+    }
 
     // In insert mode, allow normal typing except for Escape
     if (vimMode === 'insert') {
@@ -51,8 +56,8 @@ export function useVimNavigation(options: VimNavigationOptions = {}) {
       return
     }
 
-    // Normal mode - only process if not in editable field (unless it's Monaco)
-    if (isEditable && !target.closest('.monaco-editor')) {
+    // Normal mode - only process if not in editable field
+    if (isEditable) {
       if (e.key === 'Escape') {
         e.preventDefault()
         ;(target as HTMLElement).blur()

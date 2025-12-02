@@ -4,7 +4,8 @@ import { Plus, Search, Filter, Play, ChevronRight, ChevronDown, Code2, Trash2, E
 import { useAppStore } from '../store/appStore'
 import { useVimNavigation } from '../hooks/useVimNavigation'
 import { CreateProblemModal } from '../components/CreateProblemModal'
-import type { Problem, Folder as FolderType } from '../types'
+import { DescriptionWithTranslation } from '../components/BilingualDescription'
+import type { Problem } from '../types'
 
 // Format matrix input for display
 // Detects patterns like "3 4 1 1 2 1 ..." where first two numbers are rows/cols
@@ -170,9 +171,8 @@ export function ProblemsView() {
     if (!existingExercise) {
       addExercise({
         problemId: problem.id,
-        userCode: problem.starterCode,
         status: 'in_progress',
-        attempts: 0,
+        submissions: [],
       })
     }
     selectProblem(problem.id)
@@ -529,11 +529,16 @@ export function ProblemsView() {
                 <h3 className="text-lg font-semibold text-dark-200 mb-4 flex items-center gap-2">
                   <ChevronRight className="w-5 h-5 text-primary-400" />
                   Description
+                  {selectedProblem.bilingualDescription && (
+                    <span className="text-xs text-dark-500 font-normal ml-2">(hover for Japanese)</span>
+                  )}
                 </h3>
                 <div className="prose prose-invert max-w-none">
-                  <p className="text-dark-300 whitespace-pre-wrap leading-relaxed">
-                    {selectedProblem.description}
-                  </p>
+                  <DescriptionWithTranslation
+                    description={selectedProblem.description}
+                    bilingualDescription={selectedProblem.bilingualDescription}
+                    className="text-dark-300"
+                  />
                 </div>
               </div>
 

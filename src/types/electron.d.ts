@@ -3,6 +3,7 @@ export interface GenerateProblemParams {
   difficulty: string
   language: string
   category?: string
+  problemStyle?: 'competitive' | 'software-design'
 }
 
 export interface GenerateProblemResult {
@@ -37,6 +38,25 @@ export interface ExecuteCodeResult {
   executionTime?: number
 }
 
+export interface WorkspaceResult {
+  success: boolean
+  error?: string
+}
+
+export interface FolderDialogResult extends WorkspaceResult {
+  path?: string
+}
+
+export interface ReadFileResult extends WorkspaceResult {
+  content?: string
+}
+
+export interface WorkspaceFile {
+  path: string
+  name: string
+  isDirectory: boolean
+}
+
 export interface ElectronAPI {
   minimize: () => void
   maximize: () => void
@@ -49,6 +69,13 @@ export interface ElectronAPI {
   }
   generateProblem: (params: GenerateProblemParams) => Promise<GenerateProblemResult>
   executeCode: (params: ExecuteCodeParams) => Promise<ExecuteCodeResult>
+  workspace: {
+    openFolderDialog: () => Promise<FolderDialogResult>
+    readDirectory: (dirPath: string) => Promise<WorkspaceFile[]>
+    readFile: (filePath: string) => Promise<ReadFileResult>
+    writeFile: (filePath: string, content: string) => Promise<WorkspaceResult>
+    getFileLanguage: (filePath: string) => Promise<string>
+  }
 }
 
 declare global {

@@ -8,6 +8,7 @@ import { NotesView } from './views/NotesView'
 import { ProblemsView } from './views/ProblemsView'
 import { PracticeView } from './views/PracticeView'
 import { SettingsView } from './views/SettingsView'
+import { WorkspaceView } from './views/WorkspaceView'
 import { useAppStore } from './store/appStore'
 import { useVimNavigation } from './hooks/useVimNavigation'
 
@@ -26,6 +27,8 @@ function App() {
     switch (currentView) {
       case 'dashboard':
         return <Dashboard />
+      case 'workspace':
+        return <WorkspaceView />
       case 'notes':
         return <NotesView />
       case 'problems':

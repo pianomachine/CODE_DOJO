@@ -3,9 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, Search, Star, Trash2, Tag, Clock, Folder, FolderPlus, FolderOpen, MoreVertical, X, Edit3, FileText, ChevronDown, ChevronRight } from 'lucide-react'
 import { useAppStore } from '../store/appStore'
 import { useVimNavigation } from '../hooks/useVimNavigation'
-import Editor from '@monaco-editor/react'
-import type { editor } from 'monaco-editor'
-import type { Folder as FolderType } from '../types'
+import { MilkdownEditor } from '../components/MilkdownEditor'
 
 export function NotesView() {
   const {
@@ -125,21 +123,8 @@ export function NotesView() {
     updateNote(noteId, { folderId })
   }
 
-  const handleEditorMount = useCallback((editor: editor.IStandaloneCodeEditor) => {
-    if (vimModeEnabled) {
-      import('monaco-vim').then((MonacoVim) => {
-        const statusNode = document.getElementById('vim-status-note')
-        if (statusNode) {
-          MonacoVim.initVimMode(editor, statusNode)
-        }
-      }).catch(console.error)
-    }
-  }, [vimModeEnabled])
-
   // デバウンスして保存
-  const handleContentChange = useCallback((value: string | undefined) => {
-    if (value === undefined) return
-
+  const handleContentChange = useCallback((value: string) => {
     setEditorContent(value)
 
     // 既存のタイムアウトをクリア
@@ -487,35 +472,13 @@ export function NotesView() {
               </motion.button>
             </div>
 
-            {/* Monaco Editor */}
-            <div className="flex-1 relative">
-              <Editor
+            {/* Milkdown Editor */}
+            <div className="flex-1 overflow-hidden">
+              <MilkdownEditor
                 key={selectedNote.id}
-                height="100%"
-                defaultLanguage="markdown"
-                theme="vs-dark"
                 value={editorContent}
                 onChange={handleContentChange}
-                onMount={handleEditorMount}
-                loading={<div className="flex items-center justify-center h-full text-dark-500">Loading editor...</div>}
-                options={{
-                  fontSize: 14,
-                  fontFamily: 'JetBrains Mono, monospace',
-                  minimap: { enabled: false },
-                  wordWrap: 'on',
-                  lineNumbers: 'off',
-                  padding: { top: 16, bottom: 16 },
-                  scrollBeyondLastLine: false,
-                  renderLineHighlight: 'none',
-                  overviewRulerLanes: 0,
-                  hideCursorInOverviewRuler: true,
-                  scrollbar: {
-                    vertical: 'auto',
-                    horizontal: 'hidden',
-                  },
-                }}
               />
-              <div id="vim-status-note" className="absolute bottom-2 left-4 text-xs font-mono text-dark-500" />
             </div>
 
             {/* Tags */}

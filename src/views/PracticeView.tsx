@@ -16,7 +16,8 @@ import {
 import Editor from '@monaco-editor/react'
 import type { editor } from 'monaco-editor'
 import { useAppStore } from '../store/appStore'
-import type { Problem, Submission } from '../types'
+import { DescriptionWithTranslation } from '../components/BilingualDescription'
+import type { Problem } from '../types'
 
 // Format matrix input for display
 // Detects patterns like "3 4 1 1 2 1 ..." where first two numbers are rows/cols
@@ -107,7 +108,6 @@ export function PracticeView() {
     problems,
     exercises,
     selectedProblemId,
-    selectProblem,
     addSubmission,
     vimModeEnabled,
     setCurrentView,
@@ -120,7 +120,7 @@ export function PracticeView() {
   const [showHistory, setShowHistory] = useState(false)
   const [testResults, setTestResults] = useState<{ passed: boolean; output: string }[]>([])
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
-  const vimModeRef = useRef<ReturnType<typeof import('monaco-vim').initVimMode> | null>(null)
+  const vimModeRef = useRef<import('vim-monaco').VimMode | null>(null)
 
   const selectedProblem = problems.find((p) => p.id === selectedProblemId)
   const currentExercise = exercises.find((e) => e.problemId === selectedProblemId)
@@ -177,10 +177,13 @@ export function PracticeView() {
 
       // Initialize Vim mode if enabled
       if (vimModeEnabled) {
-        import('monaco-vim').then((MonacoVim) => {
+        import('vim-monaco').then(({ VimMode, makeDomStatusBar }) => {
           const statusNode = document.getElementById('vim-status-practice')
           if (statusNode && !vimModeRef.current) {
-            vimModeRef.current = MonacoVim.initVimMode(editor, statusNode)
+            statusNode.innerHTML = ''
+            const statusBar = makeDomStatusBar(statusNode, () => editor.focus())
+            vimModeRef.current = new VimMode(editor, statusBar)
+            vimModeRef.current.enable()
           }
         })
       }
@@ -190,14 +193,17 @@ export function PracticeView() {
 
   useEffect(() => {
     if (editorRef.current && vimModeEnabled && !vimModeRef.current) {
-      import('monaco-vim').then((MonacoVim) => {
+      import('vim-monaco').then(({ VimMode, makeDomStatusBar }) => {
         const statusNode = document.getElementById('vim-status-practice')
         if (statusNode && editorRef.current) {
-          vimModeRef.current = MonacoVim.initVimMode(editorRef.current, statusNode)
+          statusNode.innerHTML = ''
+          const statusBar = makeDomStatusBar(statusNode, () => editorRef.current?.focus())
+          vimModeRef.current = new VimMode(editorRef.current, statusBar)
+          vimModeRef.current.enable()
         }
       })
     } else if (!vimModeEnabled && vimModeRef.current) {
-      vimModeRef.current.dispose()
+      vimModeRef.current.disable()
       vimModeRef.current = null
     }
   }, [vimModeEnabled])
@@ -406,10 +412,17 @@ export function PracticeView() {
           className="h-full border-r border-dark-700/50 overflow-hidden"
         >
           <div className="w-[400px] h-full overflow-y-auto p-6">
-            <h2 className="text-lg font-semibold text-dark-200 mb-4">Description</h2>
-            <p className="text-dark-300 whitespace-pre-wrap leading-relaxed mb-6">
-              {selectedProblem.description}
-            </p>
+            <div className="flex items-center gap-2 mb-4">
+              <h2 className="text-lg font-semibold text-dark-200">Description</h2>
+              {selectedProblem.bilingualDescription && (
+                <span className="text-xs text-dark-500">(hover for Japanese)</span>
+              )}
+            </div>
+            <DescriptionWithTranslation
+              description={selectedProblem.description}
+              bilingualDescription={selectedProblem.bilingualDescription}
+              className="text-dark-300 mb-6"
+            />
 
             <h3 className="text-sm font-semibold text-dark-400 mb-3">Examples</h3>
             {selectedProblem.testCases.map((testCase, index) => (
@@ -486,7 +499,6 @@ export function PracticeView() {
                   // Check if this line is a test result line
                   const isTestLine = line.includes('Test ') && (line.includes('Passed') || line.includes('Failed'))
                   const isPassed = line.includes('Passed ✓')
-                  const isFailed = line.includes('Failed ✗')
 
                   if (isTestLine) {
                     return (
@@ -573,7 +585,7 @@ export function PracticeView() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {[...currentExercise.submissions].reverse().map((submission, index) => (
+                    {[...currentExercise.submissions].reverse().map((submission) => (
                       <div
                         key={submission.id}
                         className={`p-4 rounded-lg border ${

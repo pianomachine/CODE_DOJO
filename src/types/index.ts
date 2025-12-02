@@ -18,10 +18,18 @@ export interface Note {
   isFavorite: boolean
 }
 
+// Bilingual sentence with English and Japanese translation
+export interface BilingualSentence {
+  en: string
+  ja: string
+}
+
 export interface Problem {
   id: string
   title: string
   description: string
+  // Bilingual description: array of sentence pairs (English + Japanese)
+  bilingualDescription?: BilingualSentence[]
   difficulty: 'easy' | 'medium' | 'hard'
   category: string
   language: 'javascript' | 'typescript' | 'python' | 'cpp' | 'java' | 'go' | 'rust'
@@ -72,4 +80,20 @@ export interface AppSettings {
   autoSaveInterval: number
 }
 
-export type ViewType = 'dashboard' | 'notes' | 'problems' | 'practice' | 'settings'
+export type ViewType = 'dashboard' | 'notes' | 'problems' | 'practice' | 'settings' | 'workspace'
+
+// Workspace types for file editing
+export interface WorkspaceFile {
+  path: string
+  name: string
+  isDirectory: boolean
+  children?: WorkspaceFile[]
+}
+
+export interface OpenFile {
+  path: string
+  name: string
+  content: string
+  language: string
+  isDirty: boolean
+}

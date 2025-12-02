@@ -9,6 +9,7 @@ import {
   Keyboard,
   PanelLeftClose,
   PanelLeft,
+  FolderOpen,
 } from 'lucide-react'
 import { useAppStore } from '../store/appStore'
 import type { ViewType } from '../types'
@@ -22,6 +23,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, shortcut: 'gd' },
+  { id: 'workspace', label: 'Workspace', icon: <FolderOpen className="w-5 h-5" />, shortcut: 'gw' },
   { id: 'notes', label: 'Notes', icon: <FileText className="w-5 h-5" />, shortcut: 'gn' },
   { id: 'problems', label: 'Problems', icon: <Code2 className="w-5 h-5" />, shortcut: 'gp' },
   { id: 'practice', label: 'Practice', icon: <Play className="w-5 h-5" />, shortcut: 'gr' },

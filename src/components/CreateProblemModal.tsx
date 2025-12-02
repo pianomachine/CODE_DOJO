@@ -236,6 +236,7 @@ export function CreateProblemModal({ isOpen, onClose }: Props) {
   const [aiPrompt, setAiPrompt] = useState('')
   const [aiDifficulty, setAiDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium')
   const [aiLanguage, setAiLanguage] = useState('TypeScript')
+  const [aiProblemStyle, setAiProblemStyle] = useState<'competitive' | 'software-design'>('competitive')
 
   // Library selection
   const [selectedLibraryProblems, setSelectedLibraryProblems] = useState<number[]>([])
@@ -296,16 +297,62 @@ export function CreateProblemModal({ isOpen, onClose }: Props) {
         difficulty: aiDifficulty,
         language: aiLanguage,
         category: mode === 'ai-template' ? 'Algorithm' : undefined,
+        problemStyle: aiProblemStyle,
       })
 
       if (!result.success) {
         throw new Error(result.error || 'Failed to generate problem')
       }
 
-      const data = result.data
+      const data = result.data as {
+        title?: string
+        description?: string
+        bilingualDescription?: { en: string; ja: string }[]
+        difficulty?: 'easy' | 'medium' | 'hard'
+        category?: string
+        tags?: string[]
+        starterCode?: string
+        testCases?: { input: string; expectedOutput: string; description?: string }[]
+      }
+
+      if (!data) {
+        throw new Error('No data returned from AI')
+      }
+
+      // Validate the generated problem quality
+      const invalidPatterns = [
+        'placeholder',
+        'actual problem',
+        'should provide',
+        'clear instructions',
+        'to be determined',
+        'tbd',
+        'todo',
+        'implement your solution',
+      ]
+
+      const descLower = (data.description || '').toLowerCase()
+      const titleLower = (data.title || '').toLowerCase()
+
+      // Check for placeholder text
+      for (const pattern of invalidPatterns) {
+        if (descLower.includes(pattern) || titleLower.includes(pattern)) {
+          throw new Error('AIが不完全な問題を生成しました。もう一度お試しください。')
+        }
+      }
+
+      // Check minimum description length
+      if (!data.description || data.description.length < 50) {
+        throw new Error('生成された問題の説明が短すぎます。もう一度お試しください。')
+      }
+
+      // Check for test cases
+      if (!data.testCases || data.testCases.length < 1) {
+        throw new Error('テストケースが生成されませんでした。もう一度お試しください。')
+      }
 
       // Add unique IDs to test cases
-      const testCases = (data.testCases || []).map((tc: { input: string; expectedOutput: string; description?: string }) => ({
+      const testCases = (data.testCases || []).map((tc) => ({
         id: uuidv4(),
         input: tc.input,
         expectedOutput: tc.expectedOutput,
@@ -326,6 +373,7 @@ export function CreateProblemModal({ isOpen, onClose }: Props) {
       const generatedProblem = {
         title: data.title || 'AI Generated Problem',
         description: data.description || prompt,
+        bilingualDescription: data.bilingualDescription,
         difficulty: data.difficulty || aiDifficulty,
         category: data.category || 'Algorithm',
         language: languageMap[aiLanguage] || 'typescript',
@@ -630,26 +678,71 @@ export function CreateProblemModal({ isOpen, onClose }: Props) {
               {/* AI custom creation */}
               {mode === 'ai-custom' && (
                 <div className="space-y-6">
+                  {/* Problem Style Toggle */}
+                  <div>
+                    <label className="block text-sm font-medium text-dark-300 mb-3">Problem Style</label>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setAiProblemStyle('competitive')}
+                        className={`flex-1 p-3 rounded-lg border text-left transition-all ${
+                          aiProblemStyle === 'competitive'
+                            ? 'bg-primary-500/20 border-primary-500/50 text-primary-300'
+                            : 'bg-dark-800/50 border-dark-700 text-dark-400 hover:border-dark-600'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <Zap className="w-4 h-4" />
+                          <span className="font-medium text-sm">Competitive Programming</span>
+                        </div>
+                        <p className="text-xs opacity-70">Algorithm, Data Structure, AtCoder/LeetCode style</p>
+                      </button>
+                      <button
+                        onClick={() => setAiProblemStyle('software-design')}
+                        className={`flex-1 p-3 rounded-lg border text-left transition-all ${
+                          aiProblemStyle === 'software-design'
+                            ? 'bg-accent-purple/20 border-accent-purple/50 text-accent-purple'
+                            : 'bg-dark-800/50 border-dark-700 text-dark-400 hover:border-dark-600'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <Code2 className="w-4 h-4" />
+                          <span className="font-medium text-sm">Software Design</span>
+                        </div>
+                        <p className="text-xs opacity-70">TDD, SOLID, Clean Architecture, Design Patterns</p>
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="p-4 bg-primary-500/10 border border-primary-500/30 rounded-lg">
                     <div className="flex items-start gap-3">
                       <Sparkles className="w-5 h-5 text-primary-400 mt-0.5" />
                       <div>
-                        <h4 className="font-medium text-dark-100 mb-1">AI Problem Creation / Import</h4>
+                        <h4 className="font-medium text-dark-100 mb-1">
+                          {aiProblemStyle === 'competitive'
+                            ? 'AI Problem Creation / Import'
+                            : 'AI Software Design Problem'}
+                        </h4>
                         <p className="text-sm text-dark-400">
-                          You can either describe a problem you want, or paste an existing problem statement directly (from AtCoder, LeetCode, Codeforces, etc.) and AI will parse it automatically.
+                          {aiProblemStyle === 'competitive'
+                            ? 'Describe a problem or paste from AtCoder, LeetCode, Codeforces, etc.'
+                            : 'Describe a design challenge: refactoring, implementing patterns, TDD exercises, etc.'}
                         </p>
                       </div>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-dark-300 mb-2">Problem Description / Raw Problem Text</label>
+                    <label className="block text-sm font-medium text-dark-300 mb-2">
+                      {aiProblemStyle === 'competitive' ? 'Problem Description / Raw Problem Text' : 'Design Challenge Description'}
+                    </label>
                     <textarea
                       value={aiPrompt}
                       onChange={(e) => setAiPrompt(e.target.value)}
                       rows={10}
                       className="w-full bg-dark-800 border border-dark-700 rounded-lg px-4 py-3 text-dark-100 focus:outline-none focus:border-primary-500 resize-none font-mono text-sm"
-                      placeholder="Option 1 - Describe what you want:&#10;- Create a problem using binary search&#10;- I want a problem to learn recursion&#10;&#10;Option 2 - Paste a problem directly:&#10;あなたは、板を倒すゲームを考えました...&#10;入力例1&#10;3 4&#10;1 1 2 1&#10;...&#10;出力例1&#10;6"
+                      placeholder={aiProblemStyle === 'competitive'
+                        ? "Option 1 - Describe what you want:\n- Create a problem using binary search\n- I want a problem to learn recursion\n\nOption 2 - Paste a problem directly:\nあなたは、板を倒すゲームを考えました...\n入力例1\n3 4\n..."
+                        : "Examples:\n- Create a TDD exercise for a shopping cart\n- Refactor this code to follow Single Responsibility Principle\n- Implement the Observer pattern for a notification system\n- Design a REST API with proper separation of concerns"}
                     />
                   </div>
 

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog } from 'electron'
 import path from 'path'
 import { spawn, exec, execSync } from 'child_process'
 import fs from 'fs'
@@ -114,11 +114,88 @@ ipcMain.handle('generate-problem', async (_event, params: {
   difficulty: string
   language: string
   category?: string
+  problemStyle?: 'competitive' | 'software-design'
 }) => {
   try {
-    const { prompt, difficulty, language, category } = params
+    const { prompt, difficulty, language, category, problemStyle = 'competitive' } = params
 
-    const systemPrompt = `You are a coding problem parser and generator. Your task is to either:
+    // Software Design mode prompt
+    const softwareDesignPrompt = `You are a software design problem generator. Create problems that teach:
+- TDD (Test-Driven Development)
+- SOLID principles (Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, Dependency Inversion)
+- Design Patterns (Factory, Observer, Strategy, Repository, etc.)
+- Clean Architecture
+- Separation of Concerns
+- High Cohesion, Low Coupling
+
+PROBLEM FORMAT FOR SOFTWARE DESIGN:
+1. Present a scenario or existing code that needs improvement
+2. Clearly state what principle/pattern to apply
+3. Provide starter code that the user needs to refactor or extend
+4. Test cases should verify the design works correctly
+
+BILINGUAL DESCRIPTION (IMPORTANT):
+- The "description" field should be in English
+- You MUST also provide "bilingualDescription" which is an array of sentence pairs
+- Each sentence in English should have a corresponding Japanese translation
+
+Return a JSON object with this structure:
+{
+  "title": "Descriptive title (e.g., 'Refactor to Single Responsibility Principle')",
+  "description": "Complete problem description explaining the scenario, what's wrong with current code, and what to achieve",
+  "bilingualDescription": [
+    {"en": "Sentence in English.", "ja": "日本語訳。"}
+  ],
+  "difficulty": "${difficulty}",
+  "category": "Software Design",
+  "tags": ["tdd", "solid", "design-pattern", "refactoring"],
+  "starterCode": "Code to refactor or extend - should be a complete, runnable file",
+  "testCases": [
+    {
+      "input": "Test scenario description or function call",
+      "expectedOutput": "Expected behavior or output",
+      "description": "What this test verifies"
+    }
+  ]
+}
+
+STARTER CODE FORMAT FOR SOFTWARE DESIGN:
+- Provide COMPLETE, runnable code (not stdin/stdout style)
+- Include the problematic code that needs refactoring, OR
+- Include interfaces/base classes that need implementation
+- Add clear comments like "// TODO: Refactor this class" or "// Implement this method"
+
+Example for ${language}:
+\`\`\`
+// Current code violates Single Responsibility Principle
+// TODO: Refactor into separate classes
+
+class UserService {
+    // This class does too much - handles user data, validation, AND email sending
+
+    saveUser(user) {
+        // validate
+        // save to db
+        // send welcome email
+    }
+}
+
+// Your task: Split this into UserValidator, UserRepository, and EmailService
+\`\`\`
+
+TEST CASES FOR SOFTWARE DESIGN:
+- Test cases should describe behavior, not stdin/stdout
+- Example: input: "UserService.saveUser(validUser)", expectedOutput: "User saved and email sent"
+- Focus on verifying the design meets requirements
+
+IMPORTANT:
+- The problem should teach a specific software design concept
+- Include "before" code that has issues
+- Clearly explain what needs to be improved
+- Test cases verify the refactored code works correctly`
+
+    // Competitive Programming mode prompt
+    const competitivePrompt = `You are a coding problem parser and generator. Your task is to either:
 1. Parse an existing problem statement (from competitive programming sites like AtCoder, LeetCode, Codeforces, etc.)
 2. Generate a new problem based on a description
 
@@ -127,6 +204,13 @@ IMPORTANT: The user may paste a raw problem statement directly. In that case:
 - Rewrite the description clearly in your own words
 - Extract ALL test cases from the input/output examples
 - Create appropriate starter code for the specified language
+
+CRITICAL QUALITY REQUIREMENTS:
+- NEVER use placeholder text like "This is a placeholder" or "The actual problem..."
+- NEVER generate incomplete or vague descriptions
+- The description MUST be a complete, specific problem statement
+- You MUST include at least 2 test cases with concrete input/output values
+- If the user's input is unclear, create a COMPLETE problem based on your best interpretation
 
 CRITICAL - Test case input/output formatting:
 - You MUST preserve the EXACT line structure from the original problem's input/output examples
@@ -151,10 +235,25 @@ WRONG formats (DO NOT DO THIS):
 
 The number of \\n in your input should match (number of lines in original input - 1)
 
+BILINGUAL DESCRIPTION (IMPORTANT):
+- The "description" field should be in English
+- You MUST also provide "bilingualDescription" which is an array of sentence pairs
+- Each sentence in English should have a corresponding Japanese translation
+- Split the description into logical sentences/paragraphs for easier reading
+- The bilingualDescription MUST have at least 5 sentence pairs for a complete problem
+
 Return a JSON object with the following structure:
 {
-  "title": "Concise problem title",
-  "description": "Clear problem description. Include input format, constraints, and what the output should be.",
+  "title": "Concise problem title (NOT 'Placeholder' or generic names)",
+  "description": "Complete problem description in English. MUST include: 1) Problem statement 2) Input format 3) Output format 4) Constraints. Minimum 100 characters.",
+  "bilingualDescription": [
+    {"en": "Problem statement sentence.", "ja": "問題文の日本語訳。"},
+    {"en": "More details about the problem.", "ja": "問題の詳細説明。"},
+    {"en": "Input Format:", "ja": "入力形式:"},
+    {"en": "The first line contains N.", "ja": "最初の行にNが含まれます。"},
+    {"en": "Output Format:", "ja": "出力形式:"},
+    {"en": "Print the answer.", "ja": "答えを出力してください。"}
+  ],
   "difficulty": "${difficulty}",
   "category": "${category || 'Algorithm'}",
   "tags": ["relevant", "algorithm", "tags"],
@@ -162,7 +261,7 @@ Return a JSON object with the following structure:
   "testCases": [
     {
       "input": "Line1\\nLine2\\nLine3",
-      "expectedOutput": "Expected output",
+      "expectedOutput": "Expected output (MUST be concrete value, not placeholder)",
       "description": "Brief description of this test case"
     }
   ]
@@ -173,20 +272,116 @@ EXAMPLES of correct test case formatting:
 - Array input: {"input": "5\\n1 2 3 4 5", "expectedOutput": "15"}
 - Single line: {"input": "hello world", "expectedOutput": "dlrow olleh"}
 
-For ${language} starter code:
-- Include necessary imports/includes
-- Add input parsing boilerplate appropriate for the language
-- For C++: Use iostream with cin/cout
-- For Python: Use input() or sys.stdin
-- For TypeScript/JavaScript: Assume input comes from function parameters OR stdin
-- For Java: Use Scanner for input
-- Leave the main algorithm logic for the user to implement
+STARTER CODE FORMAT - USE STDIN/STDOUT STYLE FOR ALL LANGUAGES!
 
-Make sure:
-- The starter code is fully functional and ready to run (except for the solution logic)
-- Include at least 2-3 test cases from the original problem if available
-- The description captures the essence of the problem without unnecessary formatting artifacts
-- TEST CASE INPUTS PRESERVE THE ORIGINAL LINE STRUCTURE WITH \\n`
+All starter code must use stdin/stdout format (competitive programming style).
+This ensures consistency between test case input and code execution.
+
+TEST CASE INPUT FORMAT:
+- Always use raw stdin format with \\n for line breaks
+- Example: "3\\n1 2 3\\n4 5 6\\n7 8 9" (3 rows of numbers)
+- Example: "5\\n1 2 3 4 5" (N followed by array)
+- Example: "hello world" (simple string input)
+
+STARTER CODE BY LANGUAGE:
+
+Python:
+\`\`\`python
+N = int(input())
+A = list(map(int, input().split()))
+
+# Write your solution here
+
+print(ans)
+\`\`\`
+
+For 2D grid/matrix:
+\`\`\`python
+N = int(input())
+grid = []
+for _ in range(N):
+    row = list(map(int, input().split()))
+    grid.append(row)
+
+# Write your solution here
+
+print(ans)
+\`\`\`
+
+TypeScript:
+\`\`\`typescript
+import * as readline from 'readline';
+
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
+
+const lines: string[] = [];
+rl.on('line', (line) => lines.push(line));
+rl.on('close', () => {
+    const N = parseInt(lines[0]);
+    const A = lines[1].split(' ').map(Number);
+
+    // Write your solution here
+
+    console.log(ans);
+});
+\`\`\`
+
+C++:
+\`\`\`cpp
+#include <bits/stdc++.h>
+using namespace std;
+
+int main() {
+    int N;
+    cin >> N;
+    vector<int> A(N);
+    for (int i = 0; i < N; i++) cin >> A[i];
+
+    // Write your solution here
+
+    cout << ans << endl;
+    return 0;
+}
+\`\`\`
+
+Java:
+\`\`\`java
+import java.util.*;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        int N = sc.nextInt();
+        int[] A = new int[N];
+        for (int i = 0; i < N; i++) A[i] = sc.nextInt();
+
+        // Write your solution here
+
+        System.out.println(ans);
+    }
+}
+\`\`\`
+
+IMPORTANT RULES:
+1. Test case input MUST match what the starter code expects to read
+2. Starter code must include ALL input parsing (reading N, arrays, grids, etc.)
+3. Leave a clear "// Write your solution here" comment where user writes logic
+4. Include the print/cout statement at the end
+5. For complex inputs (grids, multiple arrays), parse ALL of them in starter code
+
+VALIDATION CHECKLIST (your response MUST pass all):
+✓ title is specific and descriptive (not "Placeholder" or "Problem")
+✓ description is at least 100 characters with complete problem statement
+✓ bilingualDescription has at least 5 sentence pairs
+✓ testCases has at least 2 test cases with concrete values
+✓ starterCode includes proper input parsing for the language
+✓ No placeholder text anywhere in the response`
+
+    // Select prompt based on problem style
+    const systemPrompt = problemStyle === 'software-design' ? softwareDesignPrompt : competitivePrompt
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -488,4 +683,122 @@ function runProgram(
 
 ipcMain.handle('execute-code', async (_event, params: ExecuteCodeParams) => {
   return executeCode(params)
+})
+
+// ============================================
+// File System Handlers for Workspace
+// ============================================
+
+// Open folder dialog
+ipcMain.handle('open-folder-dialog', async () => {
+  const result = await dialog.showOpenDialog(mainWindow!, {
+    properties: ['openDirectory']
+  })
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return { success: false, path: null }
+  }
+
+  return { success: true, path: result.filePaths[0] }
+})
+
+// Read directory contents
+interface FileEntry {
+  path: string
+  name: string
+  isDirectory: boolean
+  children?: FileEntry[]
+}
+
+ipcMain.handle('read-directory', async (_event, dirPath: string): Promise<FileEntry[]> => {
+  try {
+    const entries = fs.readdirSync(dirPath, { withFileTypes: true })
+
+    // Filter out hidden files and common ignored directories
+    const ignoredNames = ['.git', 'node_modules', '.DS_Store', 'Thumbs.db', '.idea', '.vscode', '__pycache__', '.next', 'dist', 'build']
+
+    const result: FileEntry[] = entries
+      .filter(entry => !entry.name.startsWith('.') || entry.name === '.env.example')
+      .filter(entry => !ignoredNames.includes(entry.name))
+      .map(entry => ({
+        path: path.join(dirPath, entry.name),
+        name: entry.name,
+        isDirectory: entry.isDirectory(),
+      }))
+      .sort((a, b) => {
+        // Directories first, then files
+        if (a.isDirectory && !b.isDirectory) return -1
+        if (!a.isDirectory && b.isDirectory) return 1
+        return a.name.localeCompare(b.name)
+      })
+
+    return result
+  } catch (error) {
+    console.error('Error reading directory:', error)
+    return []
+  }
+})
+
+// Read file contents
+ipcMain.handle('read-file', async (_event, filePath: string): Promise<{ success: boolean; content?: string; error?: string }> => {
+  try {
+    const content = fs.readFileSync(filePath, 'utf-8')
+    return { success: true, content }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to read file' }
+  }
+})
+
+// Write file contents
+ipcMain.handle('write-file', async (_event, filePath: string, content: string): Promise<{ success: boolean; error?: string }> => {
+  try {
+    fs.writeFileSync(filePath, content, 'utf-8')
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to write file' }
+  }
+})
+
+// Get file language based on extension
+function getLanguageFromPath(filePath: string): string {
+  const ext = path.extname(filePath).toLowerCase()
+  const langMap: Record<string, string> = {
+    '.js': 'javascript',
+    '.jsx': 'javascript',
+    '.ts': 'typescript',
+    '.tsx': 'typescript',
+    '.py': 'python',
+    '.cpp': 'cpp',
+    '.c': 'c',
+    '.h': 'cpp',
+    '.hpp': 'cpp',
+    '.java': 'java',
+    '.go': 'go',
+    '.rs': 'rust',
+    '.json': 'json',
+    '.html': 'html',
+    '.css': 'css',
+    '.scss': 'scss',
+    '.md': 'markdown',
+    '.yaml': 'yaml',
+    '.yml': 'yaml',
+    '.xml': 'xml',
+    '.sql': 'sql',
+    '.sh': 'shell',
+    '.bash': 'shell',
+    '.zsh': 'shell',
+    '.ps1': 'powershell',
+    '.rb': 'ruby',
+    '.php': 'php',
+    '.swift': 'swift',
+    '.kt': 'kotlin',
+    '.dart': 'dart',
+    '.vue': 'vue',
+    '.svelte': 'svelte',
+  }
+  return langMap[ext] || 'plaintext'
+}
+
+ipcMain.handle('get-file-language', async (_event, filePath: string): Promise<string> => {
+  return getLanguageFromPath(filePath)
 })
