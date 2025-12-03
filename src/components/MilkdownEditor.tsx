@@ -14,25 +14,22 @@ interface MilkdownEditorProps {
 export function MilkdownEditor({ value, onChange, className = '' }: MilkdownEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<Editor | null>(null)
-  const isInitializedRef = useRef(false)
-  const valueRef = useRef(value)
+  const onChangeRef = useRef(onChange)
 
-  // Keep valueRef up to date
+  // Keep onChangeRef up to date
   useEffect(() => {
-    valueRef.current = value
-  }, [value])
+    onChangeRef.current = onChange
+  }, [onChange])
 
   useEffect(() => {
-    if (!containerRef.current || isInitializedRef.current) return
-
-    isInitializedRef.current = true
+    if (!containerRef.current) return
 
     const initEditor = async () => {
       try {
         const editor = await Editor.make()
           .config((ctx) => {
             ctx.set(rootCtx, containerRef.current!)
-            ctx.set(defaultValueCtx, valueRef.current)
+            ctx.set(defaultValueCtx, value)
             ctx.set(editorViewOptionsCtx, {
               attributes: {
                 class: 'milkdown-editor prose prose-invert max-w-none focus:outline-none',
@@ -40,7 +37,7 @@ export function MilkdownEditor({ value, onChange, className = '' }: MilkdownEdit
               },
             })
             ctx.get(listenerCtx).markdownUpdated((_ctx, markdown) => {
-              onChange(markdown)
+              onChangeRef.current(markdown)
             })
           })
           .use(commonmark)
@@ -61,10 +58,9 @@ export function MilkdownEditor({ value, onChange, className = '' }: MilkdownEdit
       if (editorRef.current) {
         editorRef.current.destroy()
         editorRef.current = null
-        isInitializedRef.current = false
       }
     }
-  }, [onChange])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div

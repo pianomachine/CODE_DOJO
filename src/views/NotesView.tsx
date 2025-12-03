@@ -23,10 +23,8 @@ export function NotesView() {
   } = useAppStore()
 
   const [searchQuery, setSearchQuery] = useState('')
-  const [editorContent, setEditorContent] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const lastSelectedIdRef = useRef<string | null>(null)
   const [showNewFolderInput, setShowNewFolderInput] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null)
@@ -79,14 +77,6 @@ export function NotesView() {
     },
   })
 
-  // 選択されたノートが変わった時のみエディタコンテンツを更新
-  useEffect(() => {
-    if (selectedNote && selectedNote.id !== lastSelectedIdRef.current) {
-      setEditorContent(selectedNote.content)
-      lastSelectedIdRef.current = selectedNote.id
-    }
-  }, [selectedNote])
-
   const handleCreateNote = () => {
     const newNote = {
       title: 'Untitled Note',
@@ -125,8 +115,6 @@ export function NotesView() {
 
   // デバウンスして保存
   const handleContentChange = useCallback((value: string) => {
-    setEditorContent(value)
-
     // 既存のタイムアウトをクリア
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
@@ -163,7 +151,6 @@ export function NotesView() {
 
   const handleDelete = () => {
     if (selectedNote) {
-      lastSelectedIdRef.current = null
       deleteNote(selectedNote.id)
     }
   }
@@ -475,8 +462,8 @@ export function NotesView() {
             {/* Milkdown Editor */}
             <div className="flex-1 overflow-hidden">
               <MilkdownEditor
-                key={selectedNote.id}
-                value={editorContent}
+                key={selectedNoteId}
+                value={selectedNote.content}
                 onChange={handleContentChange}
               />
             </div>

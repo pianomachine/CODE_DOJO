@@ -218,7 +218,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       createdAt: new Date(),
       updatedAt: new Date(),
     }
-    set((state) => ({ notes: [...state.notes, newNote] }))
+    set((state) => ({
+      notes: [...state.notes, newNote],
+      selectedNoteId: newNote.id,
+    }))
     get().saveToStorage()
   },
   updateNote: (id, updates) => {
