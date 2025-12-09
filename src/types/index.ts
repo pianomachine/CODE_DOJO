@@ -117,6 +117,19 @@ export interface ScheduleTask {
   createdAt: Date
 }
 
+// SNS Post types
+export type SNSPlatform = 'twitter' | 'instagram' | 'youtube' | 'tiktok' | 'other'
+
+export interface SNSPost {
+  id: string
+  content: string
+  platform: SNSPlatform
+  date: string // YYYY-MM-DD format
+  time: string // HH:MM format
+  completed: boolean
+  createdAt: Date
+}
+
 // Workspace types for file editing
 export interface WorkspaceFile {
   path: string

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { v4 as uuidv4 } from 'uuid'
-import type { Note, Problem, Exercise, Submission, Folder, AppSettings, ViewType, VimMode, OpenFile, WorkspaceFile, PurposeGraph, PurposeNode, PurposeEdge, EdgeType, ScheduleTask } from '../types'
+import type { Note, Problem, Exercise, Submission, Folder, AppSettings, ViewType, VimMode, OpenFile, WorkspaceFile, PurposeGraph, PurposeNode, PurposeEdge, EdgeType, ScheduleTask, SNSPost, SNSPlatform } from '../types'
 
 interface AppState {
   // View state
@@ -94,6 +94,13 @@ interface AppState {
   deleteScheduleTask: (id: string) => void
   toggleScheduleTask: (id: string) => void
   reorderScheduleTask: (id: string, direction: 'up' | 'down') => void
+
+  // SNS Posts
+  snsPosts: SNSPost[]
+  addSNSPost: (content: string, platform: SNSPlatform, date: string, time: string) => void
+  updateSNSPost: (id: string, updates: Partial<SNSPost>) => void
+  deleteSNSPost: (id: string) => void
+  toggleSNSPost: (id: string) => void
 
   // Persistence
   loadFromStorage: () => Promise<void>
@@ -629,6 +636,44 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().saveToStorage()
   },
 
+  // SNS Posts
+  snsPosts: [],
+  addSNSPost: (content, platform, date, time) => {
+    const newPost: SNSPost = {
+      id: uuidv4(),
+      content,
+      platform,
+      date,
+      time,
+      completed: false,
+      createdAt: new Date(),
+    }
+    set((state) => ({ snsPosts: [...state.snsPosts, newPost] }))
+    get().saveToStorage()
+  },
+  updateSNSPost: (id, updates) => {
+    set((state) => ({
+      snsPosts: state.snsPosts.map((p) =>
+        p.id === id ? { ...p, ...updates } : p
+      ),
+    }))
+    get().saveToStorage()
+  },
+  deleteSNSPost: (id) => {
+    set((state) => ({
+      snsPosts: state.snsPosts.filter((p) => p.id !== id),
+    }))
+    get().saveToStorage()
+  },
+  toggleSNSPost: (id) => {
+    set((state) => ({
+      snsPosts: state.snsPosts.map((p) =>
+        p.id === id ? { ...p, completed: !p.completed } : p
+      ),
+    }))
+    get().saveToStorage()
+  },
+
   // Persistence
   loadFromStorage: async () => {
     try {
@@ -644,6 +689,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             vimModeEnabled?: boolean
             purposeGraphs?: PurposeGraph[]
             scheduleTasks?: ScheduleTask[]
+            snsPosts?: SNSPost[]
           }
           set({
             folders: parsed.folders || [],
@@ -654,6 +700,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             vimModeEnabled: parsed.vimModeEnabled || false,
             purposeGraphs: parsed.purposeGraphs || [],
             scheduleTasks: parsed.scheduleTasks || [],
+            snsPosts: parsed.snsPosts || [],
           })
         }
       }
@@ -674,6 +721,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           vimModeEnabled: state.vimModeEnabled,
           purposeGraphs: state.purposeGraphs,
           scheduleTasks: state.scheduleTasks,
+          snsPosts: state.snsPosts,
         })
       }
     } catch (error) {
