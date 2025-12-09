@@ -9,6 +9,8 @@ import { ProblemsView } from './views/ProblemsView'
 import { PracticeView } from './views/PracticeView'
 import { SettingsView } from './views/SettingsView'
 import { WorkspaceView } from './views/WorkspaceView'
+import { PurposeGraphView } from './views/PurposeGraphView'
+import { ScheduleView } from './views/ScheduleView'
 import { useAppStore } from './store/appStore'
 import { useVimNavigation } from './hooks/useVimNavigation'
 
@@ -27,10 +29,14 @@ function App() {
     switch (currentView) {
       case 'dashboard':
         return <Dashboard />
+      case 'schedule':
+        return <ScheduleView />
       case 'workspace':
         return <WorkspaceView />
       case 'notes':
         return <NotesView />
+      case 'purpose-graph':
+        return <PurposeGraphView />
       case 'problems':
         return <ProblemsView />
       case 'practice':

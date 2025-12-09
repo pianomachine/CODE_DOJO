@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { v4 as uuidv4 } from 'uuid'
-import type { Note, Problem, Exercise, Submission, Folder, AppSettings, ViewType, VimMode, OpenFile, WorkspaceFile } from '../types'
+import type { Note, Problem, Exercise, Submission, Folder, AppSettings, ViewType, VimMode, OpenFile, WorkspaceFile, PurposeGraph, PurposeNode, PurposeEdge, EdgeType, ScheduleTask } from '../types'
 
 interface AppState {
   // View state
@@ -73,6 +73,26 @@ interface AppState {
   setWorkspaceActiveFile: (path: string | null) => void
   updateWorkspaceFileContent: (path: string, content: string) => void
   markWorkspaceFileSaved: (path: string) => void
+
+  // Purpose Graph
+  purposeGraphs: PurposeGraph[]
+  selectedGraphId: string | null
+  addPurposeGraph: (name: string) => void
+  deletePurposeGraph: (id: string) => void
+  selectPurposeGraph: (id: string | null) => void
+  addPurposeNode: (graphId: string, label: string, position: { x: number; y: number }) => string
+  updatePurposeNode: (graphId: string, nodeId: string, updates: Partial<PurposeNode>) => void
+  deletePurposeNode: (graphId: string, nodeId: string) => void
+  addPurposeEdge: (graphId: string, source: string, target: string, type: EdgeType) => void
+  deletePurposeEdge: (graphId: string, edgeId: string) => void
+  updateGraphName: (graphId: string, name: string) => void
+
+  // Schedule
+  scheduleTasks: ScheduleTask[]
+  addScheduleTask: (content: string, date: string) => void
+  updateScheduleTask: (id: string, updates: Partial<ScheduleTask>) => void
+  deleteScheduleTask: (id: string) => void
+  toggleScheduleTask: (id: string) => void
 
   // Persistence
   loadFromStorage: () => Promise<void>
@@ -411,6 +431,154 @@ export const useAppStore = create<AppState>((set, get) => ({
     ),
   })),
 
+  // Purpose Graph
+  purposeGraphs: [],
+  selectedGraphId: null,
+  addPurposeGraph: (name) => {
+    const newGraph: PurposeGraph = {
+      id: uuidv4(),
+      name,
+      nodes: [],
+      edges: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+    set((state) => ({
+      purposeGraphs: [...state.purposeGraphs, newGraph],
+      selectedGraphId: newGraph.id,
+    }))
+    get().saveToStorage()
+  },
+  deletePurposeGraph: (id) => {
+    set((state) => ({
+      purposeGraphs: state.purposeGraphs.filter((g) => g.id !== id),
+      selectedGraphId: state.selectedGraphId === id ? null : state.selectedGraphId,
+    }))
+    get().saveToStorage()
+  },
+  selectPurposeGraph: (id) => set({ selectedGraphId: id }),
+  addPurposeNode: (graphId, label, position) => {
+    const nodeId = uuidv4()
+    const newNode: PurposeNode = {
+      id: nodeId,
+      label,
+      position,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+    set((state) => ({
+      purposeGraphs: state.purposeGraphs.map((g) =>
+        g.id === graphId
+          ? { ...g, nodes: [...g.nodes, newNode], updatedAt: new Date() }
+          : g
+      ),
+    }))
+    get().saveToStorage()
+    return nodeId
+  },
+  updatePurposeNode: (graphId, nodeId, updates) => {
+    set((state) => ({
+      purposeGraphs: state.purposeGraphs.map((g) =>
+        g.id === graphId
+          ? {
+              ...g,
+              nodes: g.nodes.map((n) =>
+                n.id === nodeId ? { ...n, ...updates, updatedAt: new Date() } : n
+              ),
+              updatedAt: new Date(),
+            }
+          : g
+      ),
+    }))
+    get().saveToStorage()
+  },
+  deletePurposeNode: (graphId, nodeId) => {
+    set((state) => ({
+      purposeGraphs: state.purposeGraphs.map((g) =>
+        g.id === graphId
+          ? {
+              ...g,
+              nodes: g.nodes.filter((n) => n.id !== nodeId),
+              edges: g.edges.filter((e) => e.source !== nodeId && e.target !== nodeId),
+              updatedAt: new Date(),
+            }
+          : g
+      ),
+    }))
+    get().saveToStorage()
+  },
+  addPurposeEdge: (graphId, source, target, type) => {
+    const newEdge: PurposeEdge = {
+      id: uuidv4(),
+      source,
+      target,
+      type,
+      createdAt: new Date(),
+    }
+    set((state) => ({
+      purposeGraphs: state.purposeGraphs.map((g) =>
+        g.id === graphId
+          ? { ...g, edges: [...g.edges, newEdge], updatedAt: new Date() }
+          : g
+      ),
+    }))
+    get().saveToStorage()
+  },
+  deletePurposeEdge: (graphId, edgeId) => {
+    set((state) => ({
+      purposeGraphs: state.purposeGraphs.map((g) =>
+        g.id === graphId
+          ? { ...g, edges: g.edges.filter((e) => e.id !== edgeId), updatedAt: new Date() }
+          : g
+      ),
+    }))
+    get().saveToStorage()
+  },
+  updateGraphName: (graphId, name) => {
+    set((state) => ({
+      purposeGraphs: state.purposeGraphs.map((g) =>
+        g.id === graphId ? { ...g, name, updatedAt: new Date() } : g
+      ),
+    }))
+    get().saveToStorage()
+  },
+
+  // Schedule
+  scheduleTasks: [],
+  addScheduleTask: (content, date) => {
+    const newTask: ScheduleTask = {
+      id: uuidv4(),
+      content,
+      completed: false,
+      date,
+      createdAt: new Date(),
+    }
+    set((state) => ({ scheduleTasks: [...state.scheduleTasks, newTask] }))
+    get().saveToStorage()
+  },
+  updateScheduleTask: (id, updates) => {
+    set((state) => ({
+      scheduleTasks: state.scheduleTasks.map((t) =>
+        t.id === id ? { ...t, ...updates } : t
+      ),
+    }))
+    get().saveToStorage()
+  },
+  deleteScheduleTask: (id) => {
+    set((state) => ({
+      scheduleTasks: state.scheduleTasks.filter((t) => t.id !== id),
+    }))
+    get().saveToStorage()
+  },
+  toggleScheduleTask: (id) => {
+    set((state) => ({
+      scheduleTasks: state.scheduleTasks.map((t) =>
+        t.id === id ? { ...t, completed: !t.completed } : t
+      ),
+    }))
+    get().saveToStorage()
+  },
+
   // Persistence
   loadFromStorage: async () => {
     try {
@@ -424,6 +592,8 @@ export const useAppStore = create<AppState>((set, get) => ({
             exercises?: Exercise[]
             settings?: AppSettings
             vimModeEnabled?: boolean
+            purposeGraphs?: PurposeGraph[]
+            scheduleTasks?: ScheduleTask[]
           }
           set({
             folders: parsed.folders || [],
@@ -432,6 +602,8 @@ export const useAppStore = create<AppState>((set, get) => ({
             exercises: parsed.exercises || [],
             settings: parsed.settings || defaultSettings,
             vimModeEnabled: parsed.vimModeEnabled || false,
+            purposeGraphs: parsed.purposeGraphs || [],
+            scheduleTasks: parsed.scheduleTasks || [],
           })
         }
       }
@@ -450,6 +622,8 @@ export const useAppStore = create<AppState>((set, get) => ({
           exercises: state.exercises,
           settings: state.settings,
           vimModeEnabled: state.vimModeEnabled,
+          purposeGraphs: state.purposeGraphs,
+          scheduleTasks: state.scheduleTasks,
         })
       }
     } catch (error) {

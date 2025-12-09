@@ -114,10 +114,81 @@ ipcMain.handle('generate-problem', async (_event, params: {
   difficulty: string
   language: string
   category?: string
-  problemStyle?: 'competitive' | 'software-design'
+  problemStyle?: 'competitive' | 'software-design' | 'english'
 }) => {
   try {
     const { prompt, difficulty, language, category, problemStyle = 'competitive' } = params
+
+    // Detect English study problems
+    const promptLower = prompt.toLowerCase()
+    const isEnglishProblem = promptLower.includes('english') ||
+      promptLower.includes('reading comprehension') ||
+      promptLower.includes('listening comprehension') ||
+      promptLower.includes('speaking practice') ||
+      promptLower.includes('writing exercise') ||
+      promptLower.includes('writing task') ||
+      (problemStyle === 'english')
+
+    // English study prompt - Generate content with pre-translated sentences
+    const englishStudyPrompt = `You are an English language content creator for Japanese learners. Create engaging English study materials WITH Japanese translations.
+
+REQUIREMENTS:
+1. Generate a passage/dialogue of 150-300 words
+2. Include SENTENCE-BY-SENTENCE Japanese translations
+3. Include vocabulary explanations for 5-8 key words
+4. Include comprehension questions
+5. Difficulty: ${difficulty} (easy=simple vocabulary, medium=intermediate, hard=advanced)
+
+Return a JSON object:
+{
+  "title": "Engaging title",
+  "description": "The English passage only (no translations here)",
+  "difficulty": "${difficulty}",
+  "category": "English",
+  "tags": ["english", "reading"],
+  "starterCode": "",
+  "testCases": [],
+  "sentenceTranslations": [
+    {"en": "First English sentence.", "ja": "最初の文の日本語訳。"},
+    {"en": "Second English sentence.", "ja": "2番目の文の日本語訳。"}
+  ],
+  "vocabularyList": [
+    {
+      "word": "example",
+      "pronunciation": "/ɪɡˈzæmpəl/",
+      "partOfSpeech": "noun",
+      "meaning": "例、見本",
+      "definition": "a thing characteristic of its kind",
+      "exampleSentence": "This is a good example.",
+      "exampleTranslation": "これは良い例です。"
+    }
+  ],
+  "comprehensionQuestions": [
+    {"question": "What is the main idea?", "questionJa": "主な考えは何ですか？", "answer": "The answer", "answerJa": "答えの日本語訳"}
+  ]
+}
+
+CRITICAL RULES:
+1. "description" contains ONLY the English passage (no Japanese, no questions)
+2. "sentenceTranslations" must have EVERY sentence from the passage with its Japanese translation
+3. Split the passage into natural sentences - one array item per sentence
+4. "vocabularyList" should have 5-8 important words with full details
+5. "comprehensionQuestions" should have 4-5 questions
+
+Example passage split:
+"The sun rose slowly over the mountains. Birds began to sing their morning songs. A gentle breeze rustled through the trees."
+
+Should become:
+"sentenceTranslations": [
+  {"en": "The sun rose slowly over the mountains.", "ja": "太陽がゆっくりと山々の上に昇りました。"},
+  {"en": "Birds began to sing their morning songs.", "ja": "鳥たちが朝の歌を歌い始めました。"},
+  {"en": "A gentle breeze rustled through the trees.", "ja": "穏やかな風が木々の間をさらさらと吹き抜けました。"}
+]
+
+QUALITY:
+- Natural, authentic English appropriate for ${difficulty} level
+- Accurate, natural Japanese translations
+- Engaging educational content`
 
     // Software Design mode prompt
     const softwareDesignPrompt = `You are a software design problem generator. Create problems that teach:
@@ -381,7 +452,14 @@ VALIDATION CHECKLIST (your response MUST pass all):
 ✓ No placeholder text anywhere in the response`
 
     // Select prompt based on problem style
-    const systemPrompt = problemStyle === 'software-design' ? softwareDesignPrompt : competitivePrompt
+    let systemPrompt: string
+    if (isEnglishProblem) {
+      systemPrompt = englishStudyPrompt
+    } else if (problemStyle === 'software-design') {
+      systemPrompt = softwareDesignPrompt
+    } else {
+      systemPrompt = competitivePrompt
+    }
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -404,6 +482,108 @@ VALIDATION CHECKLIST (your response MUST pass all):
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to generate problem'
+    }
+  }
+})
+
+// AI Translation Handler for English Study
+ipcMain.handle('translate-sentence', async (_event, params: {
+  sentence: string
+  context?: string
+}) => {
+  try {
+    const { sentence, context } = params
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a helpful English-Japanese translator for Japanese learners.
+Translate the given English sentence to natural Japanese.
+Also provide a brief grammar explanation if there's anything notable.
+
+Return JSON: {"translation": "日本語訳", "grammar": "文法説明（任意）"}`
+        },
+        {
+          role: 'user',
+          content: context
+            ? `Context: ${context}\n\nTranslate: "${sentence}"`
+            : `Translate: "${sentence}"`
+        }
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.3,
+    })
+
+    const content = completion.choices[0]?.message?.content
+    if (!content) {
+      throw new Error('No response from OpenAI')
+    }
+
+    return { success: true, data: JSON.parse(content) }
+  } catch (error) {
+    console.error('Translation error:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Translation failed'
+    }
+  }
+})
+
+// AI Word Explanation Handler for English Study
+ipcMain.handle('explain-word', async (_event, params: {
+  word: string
+  sentence?: string
+}) => {
+  try {
+    const { word, sentence } = params
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `You are an English vocabulary teacher for Japanese learners.
+Explain the given English word in detail for a Japanese learner.
+
+Return JSON:
+{
+  "word": "the word",
+  "pronunciation": "発音記号",
+  "partOfSpeech": "品詞",
+  "meaning": "日本語の意味",
+  "definition": "English definition",
+  "contextMeaning": "この文脈での意味（文が提供された場合）",
+  "examples": [
+    {"en": "Example sentence", "ja": "例文の日本語訳"}
+  ],
+  "synonyms": ["similar words"],
+  "tips": "覚え方や使い方のコツ"
+}`
+        },
+        {
+          role: 'user',
+          content: sentence
+            ? `Word: "${word}"\nUsed in: "${sentence}"`
+            : `Word: "${word}"`
+        }
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.3,
+    })
+
+    const content = completion.choices[0]?.message?.content
+    if (!content) {
+      throw new Error('No response from OpenAI')
+    }
+
+    return { success: true, data: JSON.parse(content) }
+  } catch (error) {
+    console.error('Word explanation error:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Explanation failed'
     }
   }
 })

@@ -14,12 +14,168 @@ import {
   Brain,
   Target,
   ListChecks,
+  Languages,
+  BookOpenCheck,
+  Headphones,
+  Mic,
+  PencilLine,
 } from 'lucide-react'
 import { useAppStore } from '../store/appStore'
 import type { Problem, TestCase } from '../types'
 import { v4 as uuidv4 } from 'uuid'
 
-type CreateMode = 'select' | 'manual' | 'ai-custom' | 'ai-template' | 'library'
+type CreateMode = 'select' | 'manual' | 'ai-custom' | 'ai-template' | 'library' | 'english'
+
+type EnglishSkillType = 'reading' | 'listening' | 'speaking' | 'writing'
+
+// English study templates
+const englishTemplates: { id: EnglishSkillType; name: string; icon: React.ReactNode; description: string; prompt: string }[] = [
+  {
+    id: 'reading',
+    name: 'Reading',
+    icon: <BookOpenCheck className="w-5 h-5" />,
+    description: 'Read passages and answer comprehension questions',
+    prompt: `Create an English reading comprehension exercise.
+
+IMPORTANT: Generate a FULL passage of 200-350 words on an interesting topic (science, culture, history, technology, etc.).
+
+Format the description EXACTLY like this:
+
+## Passage
+[Write the full English passage here - at least 200 words]
+
+## Vocabulary
+- word1: Japanese translation / English definition
+- word2: Japanese translation / English definition
+(list 5-8 key vocabulary words)
+
+## Questions
+1. [Comprehension question about main idea]
+2. [Detail question]
+3. [Inference question]
+4. [Vocabulary in context question]
+5. [Opinion/discussion question]
+
+## Answers
+1. [Answer]
+2. [Answer]
+3. [Answer]
+4. [Answer]
+5. [Sample answer or discussion points]
+
+Make sure the passage is engaging and educational.`,
+  },
+  {
+    id: 'listening',
+    name: 'Listening',
+    icon: <Headphones className="w-5 h-5" />,
+    description: 'Listen to audio/transcript and answer questions',
+    prompt: `Create an English listening comprehension exercise with a dialogue or monologue.
+
+Format the description EXACTLY like this:
+
+## Script / Transcript
+[Write a natural dialogue between 2 people OR a monologue - about 150-250 words]
+Speaker A: ...
+Speaker B: ...
+
+## Vocabulary & Expressions
+- expression1: meaning / Japanese translation
+- expression2: meaning / Japanese translation
+(list 5-8 useful expressions from the dialogue)
+
+## Pronunciation Notes
+- Note any connected speech, reductions, or pronunciation points
+- Example: "going to" → "gonna"
+
+## Comprehension Questions
+1. [Question about the main topic/situation]
+2. [Detail question]
+3. [Question about speaker's intention/feeling]
+4. [Inference question]
+
+## Answers
+1. [Answer]
+2. [Answer]
+3. [Answer]
+4. [Answer]
+
+Make the dialogue natural and include common spoken expressions.`,
+  },
+  {
+    id: 'speaking',
+    name: 'Speaking',
+    icon: <Mic className="w-5 h-5" />,
+    description: 'Practice pronunciation and conversation',
+    prompt: `Create an English speaking practice exercise.
+
+Format the description EXACTLY like this:
+
+## Topic
+[Describe the speaking topic or situation - e.g., "Talking about your hobbies", "Ordering at a restaurant", "Job interview practice"]
+
+## Useful Phrases & Expressions
+- "phrase 1" - when to use it
+- "phrase 2" - when to use it
+(list 8-12 useful phrases for this topic)
+
+## Sample Dialogue / Monologue
+[Provide a model conversation or speech that learners can practice]
+
+## Pronunciation Focus
+- Key sounds to practice
+- Intonation patterns
+- Stress patterns in key words
+
+## Practice Tasks
+1. [First speaking task - e.g., "Introduce yourself using the phrases above"]
+2. [Second task - slightly harder]
+3. [Third task - free speaking or role-play]
+
+## Self-Evaluation Checklist
+- Did I use the target phrases?
+- Was my pronunciation clear?
+- Did I speak with natural rhythm?
+
+Make it practical and useful for real conversations.`,
+  },
+  {
+    id: 'writing',
+    name: 'Writing',
+    icon: <PencilLine className="w-5 h-5" />,
+    description: 'Write essays, emails, or creative texts',
+    prompt: `Create an English writing exercise.
+
+Format the description EXACTLY like this:
+
+## Writing Task
+[Clear description of what to write - e.g., "Write an email to a friend about your recent vacation" or "Write a short essay about the advantages of remote work"]
+
+Word count target: [e.g., 150-200 words]
+
+## Structure Guide
+1. Introduction: [what to include]
+2. Body: [what to include]
+3. Conclusion: [what to include]
+
+## Useful Vocabulary & Phrases
+- Introductions: "I'm writing to...", "I wanted to tell you about..."
+- Transitions: "First of all...", "In addition...", "On the other hand..."
+- Conclusions: "In conclusion...", "To sum up..."
+(provide 10-15 useful expressions)
+
+## Example / Model Answer
+[Provide a sample answer that demonstrates good writing]
+
+## Evaluation Criteria
+- Content: Is the message clear?
+- Organization: Is it well-structured?
+- Language: Are grammar and vocabulary appropriate?
+- Style: Is the tone suitable?
+
+Choose an interesting and practical topic.`,
+  },
+]
 
 interface Props {
   isOpen: boolean
@@ -296,8 +452,8 @@ export function CreateProblemModal({ isOpen, onClose }: Props) {
         prompt,
         difficulty: aiDifficulty,
         language: aiLanguage,
-        category: mode === 'ai-template' ? 'Algorithm' : undefined,
-        problemStyle: aiProblemStyle,
+        category: mode === 'ai-template' ? 'Algorithm' : mode === 'english' ? 'English' : undefined,
+        problemStyle: mode === 'english' ? 'english' : aiProblemStyle,
       })
 
       if (!result.success) {
@@ -308,6 +464,23 @@ export function CreateProblemModal({ isOpen, onClose }: Props) {
         title?: string
         description?: string
         bilingualDescription?: { en: string; ja: string }[]
+        // English study data
+        sentenceTranslations?: { en: string; ja: string }[]
+        vocabularyList?: {
+          word: string
+          pronunciation: string
+          partOfSpeech: string
+          meaning: string
+          definition: string
+          exampleSentence: string
+          exampleTranslation: string
+        }[]
+        comprehensionQuestions?: {
+          question: string
+          questionJa: string
+          answer: string
+          answerJa: string
+        }[]
         difficulty?: 'easy' | 'medium' | 'hard'
         category?: string
         tags?: string[]
@@ -346,16 +519,17 @@ export function CreateProblemModal({ isOpen, onClose }: Props) {
         throw new Error('生成された問題の説明が短すぎます。もう一度お試しください。')
       }
 
-      // Check for test cases
-      if (!data.testCases || data.testCases.length < 1) {
+      // Check for test cases (skip for English study problems)
+      const isEnglishProblem = mode === 'english' || prompt.toLowerCase().includes('english')
+      if (!isEnglishProblem && (!data.testCases || data.testCases.length < 1)) {
         throw new Error('テストケースが生成されませんでした。もう一度お試しください。')
       }
 
       // Add unique IDs to test cases
       const testCases = (data.testCases || []).map((tc) => ({
         id: uuidv4(),
-        input: tc.input,
-        expectedOutput: tc.expectedOutput,
+        input: tc.input || '',
+        expectedOutput: tc.expectedOutput || '',
         description: tc.description,
       }))
 
@@ -374,11 +548,15 @@ export function CreateProblemModal({ isOpen, onClose }: Props) {
         title: data.title || 'AI Generated Problem',
         description: data.description || prompt,
         bilingualDescription: data.bilingualDescription,
+        // English study data
+        sentenceTranslations: isEnglishProblem ? data.sentenceTranslations : undefined,
+        vocabularyList: isEnglishProblem ? data.vocabularyList : undefined,
+        comprehensionQuestions: isEnglishProblem ? data.comprehensionQuestions : undefined,
         difficulty: data.difficulty || aiDifficulty,
-        category: data.category || 'Algorithm',
+        category: data.category || (isEnglishProblem ? 'English' : 'Algorithm'),
         language: languageMap[aiLanguage] || 'typescript',
-        tags: [...(data.tags || []), 'ai-generated'],
-        starterCode: data.starterCode || `function solution() {\n  // Write your code here\n}`,
+        tags: [...(data.tags || []), 'ai-generated', ...(isEnglishProblem ? ['english'] : [])],
+        starterCode: isEnglishProblem ? '' : (data.starterCode || `function solution() {\n  // Write your code here\n}`),
         testCases,
       }
 
@@ -462,6 +640,7 @@ export function CreateProblemModal({ isOpen, onClose }: Props) {
                 {mode === 'ai-custom' && 'AI Custom Creation'}
                 {mode === 'ai-template' && 'AI Template Creation'}
                 {mode === 'library' && 'Add from Library'}
+                {mode === 'english' && 'English Study'}
               </h2>
               <button
                 onClick={handleClose}
@@ -533,6 +712,21 @@ export function CreateProblemModal({ isOpen, onClose }: Props) {
                     <h3 className="text-lg font-semibold text-dark-100 mb-2">Add from Library</h3>
                     <p className="text-sm text-dark-400">
                       Select from pre-made classic problems
+                    </p>
+                  </motion.button>
+
+                  <motion.button
+                    onClick={() => setMode('english')}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="p-6 bg-dark-800/50 hover:bg-dark-800 rounded-xl border border-dark-700 hover:border-sky-500/50 text-left transition-all col-span-2"
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-sky-500/20 flex items-center justify-center text-sky-400 mb-4">
+                      <Languages className="w-6 h-6" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-dark-100 mb-2">English Study</h3>
+                    <p className="text-sm text-dark-400">
+                      Create Reading, Listening, Speaking, and Writing practice problems
                     </p>
                   </motion.button>
                 </div>
@@ -856,6 +1050,67 @@ export function CreateProblemModal({ isOpen, onClose }: Props) {
                       </div>
                     </motion.button>
                   ))}
+                </div>
+              )}
+
+              {/* English study selection */}
+              {mode === 'english' && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-sky-500/10 border border-sky-500/30 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <Languages className="w-5 h-5 text-sky-400 mt-0.5" />
+                      <div>
+                        <h4 className="font-medium text-dark-100 mb-1">English Practice Problems</h4>
+                        <p className="text-sm text-dark-400">
+                          Select a skill to practice. AI will generate a problem with appropriate exercises, examples, and evaluation criteria.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    {englishTemplates.map((template) => (
+                      <motion.button
+                        key={template.id}
+                        onClick={() => handleAIGenerate(template.prompt + ' The problem should be appropriate for intermediate English learners. Include Japanese translations for difficult vocabulary.')}
+                        disabled={isLoading}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        className="p-5 bg-dark-800/50 hover:bg-dark-800 rounded-xl border border-dark-700 hover:border-sky-500/50 text-left transition-all disabled:opacity-50"
+                      >
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="p-2 bg-sky-500/20 rounded-lg text-sky-400">
+                            {template.icon}
+                          </div>
+                          <h4 className="font-medium text-dark-100">{template.name}</h4>
+                        </div>
+                        <p className="text-sm text-dark-500">{template.description}</p>
+                      </motion.button>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 p-4 bg-dark-800/50 rounded-lg border border-dark-700">
+                    <h4 className="text-sm font-medium text-dark-300 mb-2">Difficulty Level</h4>
+                    <div className="flex gap-2">
+                      {(['easy', 'medium', 'hard'] as const).map((level) => (
+                        <button
+                          key={level}
+                          onClick={() => setAiDifficulty(level)}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                            aiDifficulty === level
+                              ? level === 'easy'
+                                ? 'bg-accent-green/20 text-accent-green border border-accent-green/50'
+                                : level === 'medium'
+                                ? 'bg-accent-yellow/20 text-accent-yellow border border-accent-yellow/50'
+                                : 'bg-accent-red/20 text-accent-red border border-accent-red/50'
+                              : 'bg-dark-700/50 text-dark-400 border border-transparent hover:border-dark-600'
+                          }`}
+                        >
+                          {level.charAt(0).toUpperCase() + level.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

@@ -20,6 +20,7 @@
     "@milkdown/react": "^7.17.2",
     "@milkdown/theme-nord": "^7.17.2",
     "@monaco-editor/react": "^4.7.0",
+    "@xyflow/react": "^12.9.3",
     "electron-store": "^8.1.0",
     "framer-motion": "^10.16.16",
     "lucide-react": "^0.303.0",

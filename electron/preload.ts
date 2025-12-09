@@ -20,8 +20,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
     difficulty: string
     language: string
     category?: string
-    problemStyle?: 'competitive' | 'software-design'
+    problemStyle?: 'competitive' | 'software-design' | 'english'
   }) => ipcRenderer.invoke('generate-problem', params),
+
+  // AI Translation for English Study
+  translateSentence: (params: {
+    sentence: string
+    context?: string
+  }) => ipcRenderer.invoke('translate-sentence', params),
+
+  // AI Word Explanation for English Study
+  explainWord: (params: {
+    word: string
+    sentence?: string
+  }) => ipcRenderer.invoke('explain-word', params),
 
   // Code Execution
   executeCode: (params: {

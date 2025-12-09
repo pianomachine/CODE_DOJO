@@ -12,11 +12,13 @@ import {
   Zap,
   History,
   X,
+  Languages,
 } from 'lucide-react'
 import Editor from '@monaco-editor/react'
 import type { editor } from 'monaco-editor'
 import { useAppStore } from '../store/appStore'
 import { DescriptionWithTranslation } from '../components/BilingualDescription'
+import { EnglishContentViewer } from '../components/EnglishContentViewer'
 import type { Problem } from '../types'
 
 // Format matrix input for display
@@ -124,6 +126,17 @@ export function PracticeView() {
 
   const selectedProblem = problems.find((p) => p.id === selectedProblemId)
   const currentExercise = exercises.find((e) => e.problemId === selectedProblemId)
+
+  // Check if this is an English study problem
+  const isEnglishProblem = useMemo(() => {
+    if (!selectedProblem) return false
+    return selectedProblem.category === 'English' ||
+           selectedProblem.tags?.includes('english') ||
+           selectedProblem.tags?.includes('reading') ||
+           selectedProblem.tags?.includes('listening') ||
+           selectedProblem.tags?.includes('speaking') ||
+           selectedProblem.tags?.includes('writing')
+  }, [selectedProblem])
 
   // Detect language from starter code or problem language
   const editorLanguage = useMemo(() => {
@@ -408,38 +421,58 @@ export function PracticeView() {
         {/* Description Panel */}
         <motion.div
           initial={false}
-          animate={{ width: showDescription ? 400 : 0 }}
+          animate={{ width: showDescription ? (isEnglishProblem ? 600 : 400) : 0 }}
           className="h-full border-r border-dark-700/50 overflow-hidden"
         >
-          <div className="w-[400px] h-full overflow-y-auto p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <h2 className="text-lg font-semibold text-dark-200">Description</h2>
-              {selectedProblem.bilingualDescription && (
-                <span className="text-xs text-dark-500">(hover for Japanese)</span>
-              )}
-            </div>
-            <DescriptionWithTranslation
-              description={selectedProblem.description}
-              bilingualDescription={selectedProblem.bilingualDescription}
-              className="text-dark-300 mb-6"
-            />
-
-            <h3 className="text-sm font-semibold text-dark-400 mb-3">Examples</h3>
-            {selectedProblem.testCases.map((testCase, index) => (
-              <div key={testCase.id} className="mb-4 p-3 bg-dark-800/50 rounded-lg">
-                <div className="text-xs text-dark-500 mb-2">Example {index + 1}{testCase.description ? ` - ${testCase.description}` : ''}</div>
-                <div className="text-sm font-mono">
-                  <div className="text-dark-400 mb-2">
-                    <div className="mb-1">Input:</div>
-                    <pre className="text-dark-200 bg-dark-900/50 p-2 rounded whitespace-pre-wrap break-all">{formatMatrixInput(testCase.input)}</pre>
-                  </div>
-                  <div className="text-dark-400">
-                    <div className="mb-1">Expected Output:</div>
-                    <pre className="text-accent-green bg-dark-900/50 p-2 rounded whitespace-pre-wrap break-all">{testCase.expectedOutput.replace(/\\n/g, '\n')}</pre>
-                  </div>
+          <div className={`${isEnglishProblem ? 'w-[600px]' : 'w-[400px]'} h-full overflow-y-auto p-6`}>
+            {isEnglishProblem ? (
+              /* English Problem View */
+              <>
+                <div className="flex items-center gap-2 mb-4">
+                  <Languages className="w-5 h-5 text-sky-400" />
+                  <h2 className="text-lg font-semibold text-dark-200">English Study</h2>
                 </div>
-              </div>
-            ))}
+                <EnglishContentViewer
+                  content={selectedProblem.description}
+                  sentenceTranslations={selectedProblem.sentenceTranslations}
+                  vocabularyList={selectedProblem.vocabularyList}
+                  comprehensionQuestions={selectedProblem.comprehensionQuestions}
+                  className="mb-6"
+                />
+              </>
+            ) : (
+              /* Regular Problem View */
+              <>
+                <div className="flex items-center gap-2 mb-4">
+                  <h2 className="text-lg font-semibold text-dark-200">Description</h2>
+                  {selectedProblem.bilingualDescription && (
+                    <span className="text-xs text-dark-500">(hover for Japanese)</span>
+                  )}
+                </div>
+                <DescriptionWithTranslation
+                  description={selectedProblem.description}
+                  bilingualDescription={selectedProblem.bilingualDescription}
+                  className="text-dark-300 mb-6"
+                />
+
+                <h3 className="text-sm font-semibold text-dark-400 mb-3">Examples</h3>
+                {selectedProblem.testCases.map((testCase, index) => (
+                  <div key={testCase.id} className="mb-4 p-3 bg-dark-800/50 rounded-lg">
+                    <div className="text-xs text-dark-500 mb-2">Example {index + 1}{testCase.description ? ` - ${testCase.description}` : ''}</div>
+                    <div className="text-sm font-mono">
+                      <div className="text-dark-400 mb-2">
+                        <div className="mb-1">Input:</div>
+                        <pre className="text-dark-200 bg-dark-900/50 p-2 rounded whitespace-pre-wrap break-all">{formatMatrixInput(testCase.input)}</pre>
+                      </div>
+                      <div className="text-dark-400">
+                        <div className="mb-1">Expected Output:</div>
+                        <pre className="text-accent-green bg-dark-900/50 p-2 rounded whitespace-pre-wrap break-all">{testCase.expectedOutput.replace(/\\n/g, '\n')}</pre>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         </motion.div>
 

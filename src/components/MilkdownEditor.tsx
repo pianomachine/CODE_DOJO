@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import { Editor, rootCtx, defaultValueCtx, editorViewOptionsCtx } from '@milkdown/kit/core'
 import { commonmark } from '@milkdown/kit/preset/commonmark'
 import { gfm } from '@milkdown/kit/preset/gfm'
@@ -16,7 +16,7 @@ export function MilkdownEditor({ value, onChange, className = '' }: MilkdownEdit
   const editorRef = useRef<Editor | null>(null)
   const onChangeRef = useRef(onChange)
 
-  // Keep onChangeRef up to date
+  // Keep onChange ref up to date
   useEffect(() => {
     onChangeRef.current = onChange
   }, [onChange])
@@ -24,11 +24,14 @@ export function MilkdownEditor({ value, onChange, className = '' }: MilkdownEdit
   useEffect(() => {
     if (!containerRef.current) return
 
+    const container = containerRef.current
+    let destroyed = false
+
     const initEditor = async () => {
       try {
         const editor = await Editor.make()
           .config((ctx) => {
-            ctx.set(rootCtx, containerRef.current!)
+            ctx.set(rootCtx, container)
             ctx.set(defaultValueCtx, value)
             ctx.set(editorViewOptionsCtx, {
               attributes: {
@@ -46,6 +49,12 @@ export function MilkdownEditor({ value, onChange, className = '' }: MilkdownEdit
           .use(listener)
           .create()
 
+        // If cleanup was called while initializing, destroy immediately
+        if (destroyed) {
+          editor.destroy()
+          return
+        }
+
         editorRef.current = editor
       } catch (error) {
         console.error('Failed to initialize Milkdown editor:', error)
@@ -55,16 +64,27 @@ export function MilkdownEditor({ value, onChange, className = '' }: MilkdownEdit
     initEditor()
 
     return () => {
+      destroyed = true
       if (editorRef.current) {
         editorRef.current.destroy()
         editorRef.current = null
       }
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Click anywhere in container to focus editor
+  const handleContainerClick = useCallback(() => {
+    const proseMirror = containerRef.current?.querySelector('.ProseMirror') as HTMLElement
+    if (proseMirror) {
+      proseMirror.focus()
+    }
+  }, [])
 
   return (
     <div
       ref={containerRef}
+      onClick={handleContainerClick}
       className={`milkdown-container h-full overflow-auto ${className}`}
     />
   )
