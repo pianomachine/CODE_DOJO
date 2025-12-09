@@ -35,6 +35,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     sentence?: string
   }) => ipcRenderer.invoke('explain-word', params),
 
+  // Process custom English text (user-provided)
+  processCustomEnglishText: (params: {
+    text: string
+    title: string
+    difficulty: 'easy' | 'medium' | 'hard'
+  }) => ipcRenderer.invoke('process-custom-english-text', params),
+
   // Code Execution
   executeCode: (params: {
     code: string

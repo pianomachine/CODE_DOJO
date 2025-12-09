@@ -19,12 +19,13 @@ import {
   Headphones,
   Mic,
   PencilLine,
+  FileText,
 } from 'lucide-react'
 import { useAppStore } from '../store/appStore'
 import type { Problem, TestCase } from '../types'
 import { v4 as uuidv4 } from 'uuid'
 
-type CreateMode = 'select' | 'manual' | 'ai-custom' | 'ai-template' | 'library' | 'english'
+type CreateMode = 'select' | 'manual' | 'ai-custom' | 'ai-template' | 'library' | 'english' | 'english-custom'
 
 type EnglishSkillType = 'reading' | 'listening' | 'speaking' | 'writing'
 
@@ -397,6 +398,10 @@ export function CreateProblemModal({ isOpen, onClose }: Props) {
   // Library selection
   const [selectedLibraryProblems, setSelectedLibraryProblems] = useState<number[]>([])
 
+  // Custom English text
+  const [customEnglishText, setCustomEnglishText] = useState('')
+  const [customEnglishTitle, setCustomEnglishTitle] = useState('')
+
   const handleClose = () => {
     setMode('select')
     setManualForm({
@@ -411,6 +416,8 @@ export function CreateProblemModal({ isOpen, onClose }: Props) {
     })
     setAiPrompt('')
     setSelectedLibraryProblems([])
+    setCustomEnglishText('')
+    setCustomEnglishTitle('')
     onClose()
   }
 
@@ -577,6 +584,71 @@ export function CreateProblemModal({ isOpen, onClose }: Props) {
     handleClose()
   }
 
+  const handleCustomEnglishSubmit = async () => {
+    if (!customEnglishText.trim() || !customEnglishTitle.trim()) return
+
+    setIsLoading(true)
+    setAiError(null)
+
+    try {
+      const result = await window.electronAPI.processCustomEnglishText({
+        text: customEnglishText,
+        title: customEnglishTitle,
+        difficulty: aiDifficulty,
+      })
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to process text')
+      }
+
+      const data = result.data as {
+        sentenceTranslations: { en: string; ja: string }[]
+        vocabularyList: {
+          word: string
+          pronunciation: string
+          partOfSpeech: string
+          meaning: string
+          definition: string
+          exampleSentence: string
+          exampleTranslation: string
+        }[]
+        comprehensionQuestions: {
+          question: string
+          questionJa: string
+          answer: string
+          answerJa: string
+        }[]
+      }
+
+      if (!data) {
+        throw new Error('No data returned from AI')
+      }
+
+      // Create the problem with the custom text
+      const generatedProblem = {
+        title: customEnglishTitle,
+        description: customEnglishText,
+        sentenceTranslations: data.sentenceTranslations,
+        vocabularyList: data.vocabularyList,
+        comprehensionQuestions: data.comprehensionQuestions,
+        difficulty: aiDifficulty,
+        category: 'English',
+        language: 'typescript' as const,
+        tags: ['english', 'custom-text', 'reading'],
+        starterCode: '',
+        testCases: [],
+      }
+
+      addProblem(generatedProblem)
+      handleClose()
+    } catch (error) {
+      console.error('Custom English processing error:', error)
+      setAiError(error instanceof Error ? error.message : 'Failed to process text. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const addTestCase = () => {
     setManualForm((prev) => ({
       ...prev,
@@ -641,6 +713,7 @@ export function CreateProblemModal({ isOpen, onClose }: Props) {
                 {mode === 'ai-template' && 'AI Template Creation'}
                 {mode === 'library' && 'Add from Library'}
                 {mode === 'english' && 'English Study'}
+                {mode === 'english-custom' && 'Custom Text Input'}
               </h2>
               <button
                 onClick={handleClose}
@@ -1068,6 +1141,24 @@ export function CreateProblemModal({ isOpen, onClose }: Props) {
                     </div>
                   </div>
 
+                  {/* Custom text input option */}
+                  <motion.button
+                    onClick={() => setMode('english-custom')}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full p-4 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl border border-amber-500/30 hover:border-amber-500/50 text-left transition-all"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-amber-500/20 rounded-lg text-amber-400">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-dark-100">Input Your Own Text</h4>
+                        <p className="text-sm text-dark-400">Paste your own English text and get translations & comprehension questions</p>
+                      </div>
+                    </div>
+                  </motion.button>
+
                   <div className="grid grid-cols-2 gap-3">
                     {englishTemplates.map((template) => (
                       <motion.button
@@ -1113,13 +1204,92 @@ export function CreateProblemModal({ isOpen, onClose }: Props) {
                   </div>
                 </div>
               )}
+
+              {/* English custom text input */}
+              {mode === 'english-custom' && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <FileText className="w-5 h-5 text-amber-400 mt-0.5" />
+                      <div>
+                        <h4 className="font-medium text-dark-100 mb-1">Custom Text Input</h4>
+                        <p className="text-sm text-dark-400">
+                          Paste your own English text (article, book excerpt, etc.) and AI will generate sentence-by-sentence translations, vocabulary list, and comprehension questions.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-dark-300 mb-2">Title</label>
+                    <input
+                      type="text"
+                      value={customEnglishTitle}
+                      onChange={(e) => setCustomEnglishTitle(e.target.value)}
+                      className="w-full bg-dark-800 border border-dark-700 rounded-lg px-4 py-3 text-dark-100 focus:outline-none focus:border-amber-500"
+                      placeholder="e.g., Article from The Economist, Chapter 1 excerpt..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-dark-300 mb-2">English Text</label>
+                    <textarea
+                      value={customEnglishText}
+                      onChange={(e) => setCustomEnglishText(e.target.value)}
+                      rows={10}
+                      className="w-full bg-dark-800 border border-dark-700 rounded-lg px-4 py-3 text-dark-100 focus:outline-none focus:border-amber-500 resize-none font-mono text-sm"
+                      placeholder="Paste your English text here...
+
+The AI will:
+• Translate each sentence to Japanese
+• Create a vocabulary list with pronunciations
+• Generate comprehension questions"
+                    />
+                    <div className="mt-2 text-xs text-dark-500">
+                      {customEnglishText.length} characters | ~{customEnglishText.split(/\s+/).filter(Boolean).length} words
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-dark-800/50 rounded-lg border border-dark-700">
+                    <h4 className="text-sm font-medium text-dark-300 mb-2">Difficulty Level</h4>
+                    <div className="flex gap-2">
+                      {(['easy', 'medium', 'hard'] as const).map((level) => (
+                        <button
+                          key={level}
+                          onClick={() => setAiDifficulty(level)}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                            aiDifficulty === level
+                              ? level === 'easy'
+                                ? 'bg-accent-green/20 text-accent-green border border-accent-green/50'
+                                : level === 'medium'
+                                ? 'bg-accent-yellow/20 text-accent-yellow border border-accent-yellow/50'
+                                : 'bg-accent-red/20 text-accent-red border border-accent-red/50'
+                              : 'bg-dark-700/50 text-dark-400 border border-transparent hover:border-dark-600'
+                          }`}
+                        >
+                          {level.charAt(0).toUpperCase() + level.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-dark-500 mt-2">
+                      Affects vocabulary selection and question complexity
+                    </p>
+                  </div>
+
+                  {aiError && (
+                    <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+                      <p className="text-sm text-red-400">{aiError}</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Footer */}
             <div className="p-6 border-t border-dark-700 flex items-center justify-between">
               {mode !== 'select' && (
                 <button
-                  onClick={() => setMode('select')}
+                  onClick={() => setMode(mode === 'english-custom' ? 'english' : 'select')}
                   className="text-dark-400 hover:text-dark-200 transition-colors"
                 >
                   Back
@@ -1172,6 +1342,28 @@ export function CreateProblemModal({ isOpen, onClose }: Props) {
                 >
                   Add {selectedLibraryProblems.length} problem(s)
                   <ChevronRight className="w-4 h-4" />
+                </motion.button>
+              )}
+
+              {mode === 'english-custom' && (
+                <motion.button
+                  onClick={handleCustomEnglishSubmit}
+                  disabled={!customEnglishText.trim() || !customEnglishTitle.trim() || isLoading}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="flex items-center gap-2 px-6 py-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white font-medium transition-colors"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      Generate Translations
+                    </>
+                  )}
                 </motion.button>
               )}
             </div>

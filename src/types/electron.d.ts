@@ -3,7 +3,36 @@ export interface GenerateProblemParams {
   difficulty: string
   language: string
   category?: string
-  problemStyle?: 'competitive' | 'software-design'
+  problemStyle?: 'competitive' | 'software-design' | 'english'
+}
+
+export interface ProcessCustomEnglishParams {
+  text: string
+  title: string
+  difficulty: 'easy' | 'medium' | 'hard'
+}
+
+export interface ProcessCustomEnglishResult {
+  success: boolean
+  data?: {
+    sentenceTranslations: { en: string; ja: string }[]
+    vocabularyList: {
+      word: string
+      pronunciation: string
+      partOfSpeech: string
+      meaning: string
+      definition: string
+      exampleSentence: string
+      exampleTranslation: string
+    }[]
+    comprehensionQuestions: {
+      question: string
+      questionJa: string
+      answer: string
+      answerJa: string
+    }[]
+  }
+  error?: string
 }
 
 export interface GenerateProblemResult {
@@ -68,6 +97,7 @@ export interface ElectronAPI {
     clear: () => Promise<boolean>
   }
   generateProblem: (params: GenerateProblemParams) => Promise<GenerateProblemResult>
+  processCustomEnglishText: (params: ProcessCustomEnglishParams) => Promise<ProcessCustomEnglishResult>
   executeCode: (params: ExecuteCodeParams) => Promise<ExecuteCodeResult>
   workspace: {
     openFolderDialog: () => Promise<FolderDialogResult>

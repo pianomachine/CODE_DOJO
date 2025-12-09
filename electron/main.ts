@@ -588,6 +588,81 @@ Return JSON:
   }
 })
 
+// Process custom English text - generate translations and questions
+ipcMain.handle('process-custom-english-text', async (_event, params: {
+  text: string
+  title: string
+  difficulty: 'easy' | 'medium' | 'hard'
+}) => {
+  try {
+    const { text, title, difficulty } = params
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `You are an English language teacher for Japanese learners.
+Given an English text, create comprehensive study materials including sentence-by-sentence translations, vocabulary, and comprehension questions.
+
+Return a JSON object with this structure:
+{
+  "sentenceTranslations": [
+    {"en": "First sentence from the text.", "ja": "最初の文の日本語訳。"},
+    {"en": "Second sentence.", "ja": "2番目の文の訳。"}
+  ],
+  "vocabularyList": [
+    {
+      "word": "important word",
+      "pronunciation": "/prəˌnʌnsiˈeɪʃən/",
+      "partOfSpeech": "noun/verb/adjective/etc",
+      "meaning": "日本語の意味",
+      "definition": "English definition",
+      "exampleSentence": "Example using the word.",
+      "exampleTranslation": "例文の日本語訳"
+    }
+  ],
+  "comprehensionQuestions": [
+    {
+      "question": "Question about the text?",
+      "questionJa": "質問の日本語訳",
+      "answer": "The answer",
+      "answerJa": "答えの日本語訳"
+    }
+  ]
+}
+
+CRITICAL RULES:
+1. Split the ENTIRE text into sentences - every sentence must be in sentenceTranslations
+2. Include 5-8 important vocabulary words
+3. Include 4-5 comprehension questions
+4. Translations should be natural Japanese
+5. Difficulty level: ${difficulty} (easy=simple explanations, medium=intermediate, hard=advanced)`
+        },
+        {
+          role: 'user',
+          content: `Process this English text:\n\n${text}`
+        }
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.3,
+    })
+
+    const content = completion.choices[0]?.message?.content
+    if (!content) {
+      throw new Error('No response from OpenAI')
+    }
+
+    return { success: true, data: JSON.parse(content) }
+  } catch (error) {
+    console.error('Custom text processing error:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Processing failed'
+    }
+  }
+})
+
 // Code Execution Handler
 interface ExecuteCodeParams {
   code: string
