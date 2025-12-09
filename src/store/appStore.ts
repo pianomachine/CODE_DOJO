@@ -93,6 +93,7 @@ interface AppState {
   updateScheduleTask: (id: string, updates: Partial<ScheduleTask>) => void
   deleteScheduleTask: (id: string) => void
   toggleScheduleTask: (id: string) => void
+  reorderScheduleTask: (id: string, direction: 'up' | 'down') => void
 
   // Persistence
   loadFromStorage: () => Promise<void>
@@ -546,22 +547,39 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Schedule
   scheduleTasks: [],
   addScheduleTask: (content, date) => {
+    // Calculate the next order number for this date
+    const tasksForDate = get().scheduleTasks.filter((t) => t.date === date)
+    const maxOrder = tasksForDate.length > 0
+      ? Math.max(...tasksForDate.map((t) => t.order ?? 0))
+      : -1
     const newTask: ScheduleTask = {
       id: uuidv4(),
       content,
       completed: false,
       date,
+      order: maxOrder + 1,
       createdAt: new Date(),
     }
     set((state) => ({ scheduleTasks: [...state.scheduleTasks, newTask] }))
     get().saveToStorage()
   },
   updateScheduleTask: (id, updates) => {
-    set((state) => ({
-      scheduleTasks: state.scheduleTasks.map((t) =>
-        t.id === id ? { ...t, ...updates } : t
-      ),
-    }))
+    set((state) => {
+      const task = state.scheduleTasks.find((t) => t.id === id)
+      // If date is changing, update order for the new date
+      if (updates.date && task && updates.date !== task.date) {
+        const tasksForNewDate = state.scheduleTasks.filter((t) => t.date === updates.date)
+        const maxOrder = tasksForNewDate.length > 0
+          ? Math.max(...tasksForNewDate.map((t) => t.order ?? 0))
+          : -1
+        updates.order = maxOrder + 1
+      }
+      return {
+        scheduleTasks: state.scheduleTasks.map((t) =>
+          t.id === id ? { ...t, ...updates } : t
+        ),
+      }
+    })
     get().saveToStorage()
   },
   deleteScheduleTask: (id) => {
@@ -576,6 +594,38 @@ export const useAppStore = create<AppState>((set, get) => ({
         t.id === id ? { ...t, completed: !t.completed } : t
       ),
     }))
+    get().saveToStorage()
+  },
+  reorderScheduleTask: (id, direction) => {
+    set((state) => {
+      const task = state.scheduleTasks.find((t) => t.id === id)
+      if (!task) return state
+
+      // Get tasks for the same date, sorted by order
+      const tasksForDate = state.scheduleTasks
+        .filter((t) => t.date === task.date)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+
+      const currentIndex = tasksForDate.findIndex((t) => t.id === id)
+      const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
+
+      // Check bounds
+      if (targetIndex < 0 || targetIndex >= tasksForDate.length) return state
+
+      // Swap orders
+      const currentTask = tasksForDate[currentIndex]
+      const targetTask = tasksForDate[targetIndex]
+      const currentOrder = currentTask.order ?? currentIndex
+      const targetOrder = targetTask.order ?? targetIndex
+
+      return {
+        scheduleTasks: state.scheduleTasks.map((t) => {
+          if (t.id === currentTask.id) return { ...t, order: targetOrder }
+          if (t.id === targetTask.id) return { ...t, order: currentOrder }
+          return t
+        }),
+      }
+    })
     get().saveToStorage()
   },
 

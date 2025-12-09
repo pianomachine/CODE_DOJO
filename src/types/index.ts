@@ -113,6 +113,7 @@ export interface ScheduleTask {
   content: string
   completed: boolean
   date: string // YYYY-MM-DD format
+  order: number // Order within the same date
   createdAt: Date
 }
 

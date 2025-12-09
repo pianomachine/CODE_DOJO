@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Check, Trash2, ChevronLeft, ChevronRight, GripVertical } from 'lucide-react'
+import { Plus, Check, Trash2, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from 'lucide-react'
 import { useAppStore } from '../store/appStore'
 
 const DAYS_JP = ['日', '月', '火', '水', '木', '金', '土']
@@ -31,7 +31,7 @@ function formatDateDisplay(date: Date): string {
 }
 
 export function ScheduleView() {
-  const { scheduleTasks, addScheduleTask, toggleScheduleTask, deleteScheduleTask, updateScheduleTask } = useAppStore()
+  const { scheduleTasks, addScheduleTask, toggleScheduleTask, deleteScheduleTask, updateScheduleTask, reorderScheduleTask } = useAppStore()
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const now = new Date()
     const day = now.getDay()
@@ -91,7 +91,9 @@ export function ScheduleView() {
   }
 
   const getTasksForDate = (dateKey: string) => {
-    return scheduleTasks.filter((task) => task.date === dateKey)
+    return scheduleTasks
+      .filter((task) => task.date === dateKey)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
   }
 
   // Drag and Drop handlers
@@ -226,7 +228,7 @@ export function ScheduleView() {
 
               {/* Tasks */}
               <div className="flex-1 p-2 overflow-y-auto space-y-1">
-                {tasks.map((task) => (
+                {tasks.map((task, taskIndex) => (
                   <motion.div
                     key={task.id}
                     initial={{ opacity: 0, y: -10 }}
@@ -234,7 +236,7 @@ export function ScheduleView() {
                     draggable={editingTaskId !== task.id}
                     onDragStart={(e) => handleDragStart(e as unknown as React.DragEvent, task.id)}
                     onDragEnd={handleDragEnd}
-                    className={`group flex items-start gap-2 p-2 rounded-lg cursor-grab active:cursor-grabbing ${
+                    className={`group flex items-start gap-1 p-2 rounded-lg cursor-grab active:cursor-grabbing ${
                       task.completed
                         ? 'bg-dark-800/50'
                         : 'bg-dark-700/50 hover:bg-dark-700'
@@ -242,7 +244,23 @@ export function ScheduleView() {
                       draggedTaskId === task.id ? 'opacity-50' : ''
                     } transition-colors`}
                   >
-                    <GripVertical className="flex-shrink-0 w-4 h-4 text-dark-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    {/* Reorder buttons */}
+                    <div className="flex-shrink-0 flex flex-col opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => reorderScheduleTask(task.id, 'up')}
+                        disabled={taskIndex === 0}
+                        className={`p-0.5 rounded hover:bg-dark-600 transition-colors ${taskIndex === 0 ? 'opacity-30 cursor-not-allowed' : ''}`}
+                      >
+                        <ChevronUp className="w-3 h-3 text-dark-400" />
+                      </button>
+                      <button
+                        onClick={() => reorderScheduleTask(task.id, 'down')}
+                        disabled={taskIndex === tasks.length - 1}
+                        className={`p-0.5 rounded hover:bg-dark-600 transition-colors ${taskIndex === tasks.length - 1 ? 'opacity-30 cursor-not-allowed' : ''}`}
+                      >
+                        <ChevronDown className="w-3 h-3 text-dark-400" />
+                      </button>
+                    </div>
 
                     <button
                       onClick={() => toggleScheduleTask(task.id)}
